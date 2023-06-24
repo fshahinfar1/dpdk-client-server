@@ -15,7 +15,7 @@ sudo apt-get install -y build-essential cmake gcc libudev-dev libnl-3-dev libnl-
 git clone https://github.com/linux-rdma/rdma-core
 cd rdma-core
 cmake .
-make
+make -j
 sudo make install
 ```
 
@@ -36,5 +36,11 @@ ninja
 ninja install
 echo $DPDK_INSTALL_DIR/lib/x86_64-linux-gnu/ | sudo tee /etc/ld.so.conf.d/dpdk_libs.conf
 sudo ldconfig
-echo export PKG_CONFIG_PATH=$DPDK_INSTALL_DIR/lib/x86_64-linux-gnu/pkgconfig | tee ~/.bashrc
+echo export PKG_CONFIG_PATH=$DPDK_INSTALL_DIR/lib/x86_64-linux-gnu/pkgconfig | tee -a ~/.bashrc
+```
+
+**Configure Huge Page**
+
+```
+GRUB_CMDLINE_LINUX_DEFAULT="default_hugepagesz=1G hugepagesz=1G hugepages=16"
 ```

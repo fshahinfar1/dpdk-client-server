@@ -379,18 +379,18 @@ int do_client(void *_cntx) {
       throughput[cur_flow] += nb_tx;
 
       /* delay between sending each batch */
+      /* wait(get_exponential_sample(0.001)); */
       // Inter arrival Time
-      wait(get_exponential_sample(0.001));
-      /* if (delay_cycles > 0) { */
-      /*   // rte_delay_us_block(delay_us); */
-      /*   uint64_t now = rte_get_tsc_cycles(); */
-      /*   double multiply = ((double)burst / (double)count_flow); */
-      /*   uint64_t end = */
-      /*       rte_get_tsc_cycles() + (uint64_t)(delay_cycles * multiply); */
-      /*   while (now < end) { */
-      /*     now = rte_get_tsc_cycles(); */
-      /*   } */
-      /* } */
+      if (delay_cycles > 0) {
+        // rte_delay_us_block(delay_us);
+        uint64_t now = rte_get_tsc_cycles();
+        double multiply = ((double)burst / (double)count_flow);
+        uint64_t end =
+            rte_get_tsc_cycles() + (uint64_t)(delay_cycles * multiply);
+        while (now < end) {
+          now = rte_get_tsc_cycles();
+        }
+      }
 
     } // end if (can_send)
   } // end of tx worker

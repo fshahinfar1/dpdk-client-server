@@ -49,12 +49,9 @@ int do_server(void *_cntx) {
   struct context *cntx = (struct context *)_cntx;
   port_type_t port_type = cntx->ptype;
   uint32_t dpdk_port = cntx->dpdk_port_id;
-  // uint16_t num_queues = cntx->num_queues;
-  // uint32_t delay_us = cntx->delay_us;
   uint32_t delay_cycles = cntx->delay_cycles;
   double cycles_error = 0; // EWMA
   struct rte_mempool *tx_mem_pool = cntx->tx_mem_pool; // just for sending arp
-  /* struct rte_mempool *ctrl_mem_pool = cntx->ctrl_mem_pool; */
   uint16_t qid = cntx->default_qid;
   uint32_t count_queues = cntx->count_queues;
   struct rte_ether_addr my_eth = cntx->my_eth;
@@ -65,7 +62,6 @@ int do_server(void *_cntx) {
   uint32_t q_index = 0;
 
   struct rte_ether_hdr *eth_hdr;
-  /* struct rte_vlan_hdr *vlan_hdr; */
   struct rte_ipv4_hdr *ipv4_hdr;
   struct rte_udp_hdr *udp_hdr;
 
@@ -74,14 +70,12 @@ int do_server(void *_cntx) {
   struct rte_mbuf *rx_bufs[BURST_SIZE];
   int first_pkt = 0; // flag indicating if has received the first packet
 
-  // int throughput[MAX_DURATION];
   const uint64_t hz = rte_get_timer_hz();
   uint64_t throughput = 0;
   uint64_t empty_burst = 0;
   uint64_t start_time;
   uint64_t exp_begin;
   uint64_t current_time;
-  // uint64_t current_sec;
   uint64_t last_pkt_time = 0;
   const uint64_t wait_until_exp_begins = 60 * hz; /* cycles */
   const uint64_t termination_threshold = 2 * hz;
@@ -109,7 +103,6 @@ int do_server(void *_cntx) {
   uint8_t rate_limit = 0;
   uint64_t delta_time;
   uint64_t limit_window;
-  /* uint8_t rate_limit_change_flag = 0; */
 
   /* TODO: remove cdq */
   uint8_t cdq = 0;
@@ -174,7 +167,6 @@ int do_server(void *_cntx) {
     delta_time = current_time - start_time;
     if (delta_time > rte_get_timer_hz()) {
       // print_stats(throughput, hist);
-      // if (my_ip == 0xC0A80115)
       double avg_nb_rx = 0;
       if (count_rx != 0)
         avg_nb_rx = sum_nb_rx / (double)count_rx;
@@ -186,16 +178,8 @@ int do_server(void *_cntx) {
       count_rx = 0;
       start_time = current_time;
       empty_burst = 0;
-      // current_sec = 0;
       // printf("failed to push: %ld\n", failed_to_push);
     }
-
-    /* Increase rate limit (TODO: just for a specific experiment) */
-    // if (rate_limit_change_flag == 0 && current_time - exp_begin > 32 * rte_get_tsc_hz()) {
-    //   printf("=============== Changing Throughput Rate ==================\n");
-    //   rate_limit_change_flag = 1;
-    //   token_limit = 6000000;
-    // }
 
     limit_window = token_limit * (delta_time / (double)(rte_get_timer_hz()));
     if (rate_limit && throughput >= limit_window) {
@@ -212,10 +196,8 @@ int do_server(void *_cntx) {
     if (nb_rx == 0) {
       empty_burst++;
       if (first_pkt) {
-        /* if client has started sending data
-         * and some amount of time has passed since
-         * last pkt then server is done
-         * */
+        /* if client has started sending data and some amount of time has
+         * passed since last pkt then server is done */
         if (current_time - last_pkt_time > termination_threshold) {
           // TODO: commented just for experiment
           run = 0;
@@ -286,25 +268,8 @@ int do_server(void *_cntx) {
 
       /* update throughput */
       throughput += 1;
-      // throughput[current_sec] += 1;
 
       udp_hdr = (struct rte_udp_hdr *)(ipv4_hdr + 1);
-
-      /* apply procesing cost for a specific flow (TODO: just for experiment) */
-      // uint16_t src_port = rte_be_to_cpu_16(udp_hdr->src_port);
-      // uint16_t dst_port = rte_be_to_cpu_16(udp_hdr->dst_port);
-      // if (rte_be_to_cpu_32(ipv4_hdr->dst_addr) == 0x0A0A0104) {
-      //   uint64_t now = rte_get_tsc_cycles();
-      //   uint64_t end = rte_get_tsc_cycles() + 5000;
-      //   while (now < end) {
-      //     now = rte_get_tsc_cycles();
-      //   }
-      // }
-
-      /* counting packet from a source port (just for testing) */
-      /*if (src_port > 1000 && src_port < 1032) {
-        cntx->tmp_array[0][src_port - 1001]++;
-      }*/
 
       // Service time 5ns per packet
       wait(get_exponential_sample(0.2));
@@ -378,12 +343,6 @@ int do_server(void *_cntx) {
 
     // failed_to_push += k - nb_tx;
   }
-
-  // Print throughput statistics
-  // printf("Throughput (pps):\n");
-  // for (i = 0; i < current_sec + 1; i++) {
-  //   printf("%ld: %d\n", i, throughput[i]);
-  // }
 
   if (!bidi)
     print_stats(fp, 0, hist);

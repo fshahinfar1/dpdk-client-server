@@ -3,7 +3,6 @@ CC = gcc
 COptFlag = -O3 -g
 CWarningFlags = -Werror -Wall -Wextra -Wcast-align -Wno-return-type
 CFLAGS += \
-	  -march=native \
 	  -iquote ./include -D_GNU_SOURCE \
 	  $(COptFlag) \
 	  $(CWarningFlags) \
@@ -11,23 +10,24 @@ CFLAGS += \
 
 LDFLAGS += $(shell $(PKGCONF) --libs libdpdk)
 
-$(info CFLAGS:)
-$(info  $(CFLAGS))
-$(info ------------------------------)
-$(info LDFLAGS:)
-$(info $(LDFLAGS))
-$(info ------------------------------)
+# $(info CFLAGS:)
+# $(info  $(CFLAGS))
+# $(info ------------------------------)
+# $(info LDFLAGS:)
+# $(info $(LDFLAGS))
+# $(info ------------------------------)
 
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))
 OUTPUT_DIR  := ./build/
 
+# Extra libraries we need
 LIBS = -lpcap -lnuma \
        -lpthread -ldl \
        -lm
 
 # binary name
-APP = app
+APP = $(OUTPUT_DIR)/app
 
 # all source are stored in SRCS-y
 SRCS := main.c
@@ -43,19 +43,25 @@ SRCS += utils/exponential.c
 OBJS = $(patsubst %.c, %.o, $(SRCS))
 _BUILT_OBJECTS = $(patsubst %.o, $(OUTPUT_DIR)/%.o, $(OBJS))
 
-default: $(OUTPUT_DIR) $(OBJS) $(APP)
+.PHONY: default clean
 
+default: $(OUTPUT_DIR) $(APP)
+
+# How to generate an object file
 %.o: %.c
-	$(CC) -o $(OUTPUT_DIR)/$@ -c $< $(CFLAGS)
+	$(CC) -o $@ -c $< $(CFLAGS)
 
-$(APP): $(OBJS) Makefile
-	$(CC) -o $(OUTPUT_DIR)/$@ $(_BUILT_OBJECTS) $(LDFLAGS) $(LIBS)
+# Stating what objects we need (fall backs to %.o rule)
+$(_BUILT_OBJECTS): $(SRCS)
 
+# Actually building the app
+$(APP): $(_BUILT_OBJECTS) Makefile
+	$(CC) -o $@ $(_BUILT_OBJECTS) $(LDFLAGS) $(LIBS)
+
+# Make sure that output directory exists
 $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
 	mkdir -p $(OUTPUT_DIR)/utils/
 
 clean:
 	rm -rf build/
-
-.PHONY: clean

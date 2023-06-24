@@ -1,3 +1,6 @@
 *.0
+*.o
+*.a
+*.so
 build/*
 tags
