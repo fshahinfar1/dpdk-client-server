@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <unistd.h>
 #include <rte_eal.h>
 #include <rte_ethdev.h>
@@ -8,6 +9,7 @@
 
 #include "exp.h"
 #include "flow_rules.h"
+#include "config.h"
 
 #define RX_RING_SIZE (512)
 #define TX_RING_SIZE (512)
@@ -18,6 +20,7 @@
 
 
 static unsigned int dpdk_port = 0;
+struct app_config config;
 
 /*
  * Initialize an ethernet port
@@ -101,18 +104,6 @@ static inline int dpdk_port_init(uint8_t port, struct rte_mempool *mbuf_pool,
   return 0;
 }
 
-static int dpdk_init(int argc, char *argv[]) {
-  int args_parsed;
-
-  args_parsed = rte_eal_init(argc, argv);
-  if (args_parsed < 0) {
-    print_usage();
-    rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
-  }
-
-  return args_parsed;
-}
-
 static int create_pools(struct rte_mempool **rx_mbuf_pool,
     struct rte_mempool **tx_mbuf_pool)
 {
@@ -143,6 +134,7 @@ static int create_pools(struct rte_mempool **rx_mbuf_pool,
  * latency of a round trip and reports percentiles.
  * */
 int main(int argc, char *argv[]) {
+  parse_args(argc, argv);
   struct rte_mempool *rx_mbuf_pool = NULL;
   struct rte_mempool *tx_mbuf_pool = NULL;
 
@@ -161,7 +153,7 @@ int main(int argc, char *argv[]) {
   int cntxIndex;
 
   count_core = rte_lcore_count();
-  if (mode == mode_client && count_core > 1) {
+  if (config.mode == mode_client && count_core > 1) {
     rte_exit(EXIT_FAILURE, "client does not support multi core expreiments! things have broken.\n");
   }
   printf("Count core: %d\n", count_core);
@@ -190,7 +182,7 @@ int main(int argc, char *argv[]) {
   int queue_per_core = config.num_queues / count_core;
   int findex = 0;
   for (int i = 0; i < count_core; i++) {
-    cntxs[i].mode = mode;
+    cntxs[i].mode = config.mode;
     cntxs[i].rx_mem_pool = rx_mbuf_pool;
     cntxs[i].tx_mem_pool = tx_mbuf_pool;
     cntxs[i].worker_id = i;
@@ -215,8 +207,8 @@ int main(int argc, char *argv[]) {
     assert(fp != NULL);
     cntxs[i].fp = fp;
 
-    cntxs[i].rate_limit = rate_limit;
-    cntxs[i].rate = rate;
+    cntxs[i].rate_limit = config.client.rate_limit;
+    cntxs[i].rate = config.client.rate;
 
     if (config.mode == mode_server) {
       cntxs[i].src_port = config.server_port;
@@ -236,7 +228,7 @@ int main(int argc, char *argv[]) {
 
       // TODO: fractions are not considered for this division
       assert((config.client.count_server_ips % count_core) == 0);
-      assert((count_flow % count_core) == 0);
+      assert((config.client.count_flow % count_core) == 0);
       int ips = config.client.count_server_ips / count_core;
 
       cntxs[i].src_port = config.client.client_port + i;
@@ -253,11 +245,11 @@ int main(int argc, char *argv[]) {
       cntxs[i].dst_port = config.server_port;
       cntxs[i].payload_length = config.payload_size;
 
-      cntxs[i].count_flow = count_flow / count_core;
+      cntxs[i].count_flow = config.client.count_flow / count_core;
       cntxs[i].base_port_number = config.server_port;
 
-      cntxs[i].duration = duration;
-      cntxs[i].delay_cycles = delay_cycles;
+      cntxs[i].duration = config.client.duration;
+      cntxs[i].delay_cycles = config.client.delay_cycles;
 
       /* use zipf for selecting dst ip */
       cntxs[i].destination_distribution = DIST_ZIPF; // DIST_UNIFORM;
@@ -268,7 +260,7 @@ int main(int argc, char *argv[]) {
   }
 
   cntxIndex = 1;
-  if (mode) {
+  if (config.mode) {
     RTE_LCORE_FOREACH_WORKER(lcore_id) {
       rte_eal_remote_launch(do_server, (void *)&cntxs[cntxIndex++], lcore_id);
     }
@@ -300,7 +292,7 @@ int main(int argc, char *argv[]) {
 
   // free
   for (int i = 0; i < count_core; i++) {
-    if (mode == mode_server) {
+    if (config.mode == mode_server) {
       free(cntxs[i].managed_queues);
     } else {
       free(cntxs[i].dst_ips);

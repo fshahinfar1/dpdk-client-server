@@ -5,14 +5,6 @@
 #include <rte_mbuf.h>
 #include <rte_ether.h>
 
-
-#define mode_client (0)
-#define mode_server (1)
-
-#define system_bess (0)
-#define system_bkdrft (1)
-
-
 #define MAKE_IP_ADDR(a, b, c, d)      \
   (((uint32_t) a << 24) | ((uint32_t) b << 16) |  \
    ((uint32_t) c << 8) | (uint32_t) d)

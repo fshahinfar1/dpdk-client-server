@@ -39,6 +39,7 @@ SRCS += utils/flow_rules.c
 SRCS += utils/arp.c
 SRCS += utils/zipf.c
 SRCS += utils/exponential.c
+HEADER_FILES = $(shell find . -iname "*.h")
 
 OBJS = $(patsubst %.c, %.o, $(SRCS))
 _BUILT_OBJECTS = $(patsubst %.o, $(OUTPUT_DIR)/%.o, $(OBJS))
@@ -47,16 +48,9 @@ _BUILT_OBJECTS = $(patsubst %.o, $(OUTPUT_DIR)/%.o, $(OBJS))
 
 default: $(OUTPUT_DIR) $(APP)
 
-# How to generate an object file
-%.o: %.c
-	$(CC) -o $@ -c $< $(CFLAGS)
-
-# Stating what objects we need (fall backs to %.o rule)
-$(_BUILT_OBJECTS): $(SRCS)
-
 # Actually building the app
-$(APP): $(_BUILT_OBJECTS) Makefile
-	$(CC) -o $@ $(_BUILT_OBJECTS) $(LDFLAGS) $(LIBS)
+$(APP): $(SRCS) $(HEADER_FILES) Makefile
+	$(CC) -o $@ $(SRCS) $(CFLAGS) $(LDFLAGS) $(LIBS)
 
 # Make sure that output directory exists
 $(OUTPUT_DIR):

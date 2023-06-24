@@ -47,7 +47,6 @@ void print_mac(struct rte_ether_addr *addr) {
 
 int do_server(void *_cntx) {
   struct context *cntx = (struct context *)_cntx;
-  port_type_t port_type = cntx->ptype;
   uint32_t dpdk_port = cntx->dpdk_port_id;
   uint32_t delay_cycles = cntx->delay_cycles;
   double cycles_error = 0; // EWMA
@@ -121,7 +120,7 @@ int do_server(void *_cntx) {
   hist = new_p_hist_from_max_value(MAX_EXPECTED_LATENCY);
 
   /* check if running on the correct numa node */
-  if (port_type == dpdk && rte_eth_dev_socket_id(dpdk_port) > 0 &&
+  if (rte_eth_dev_socket_id(dpdk_port) > 0 &&
       rte_eth_dev_socket_id(dpdk_port) != (int)rte_socket_id()) {
     printf("Warining port is on remote NUMA node\n");
   }

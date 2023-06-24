@@ -36,8 +36,6 @@ static inline uint16_t get_tci(uint16_t prio, uint16_t dei, uint16_t vlan_id) {
 
 int do_client(void *_cntx) {
   struct context *cntx = (struct context *)_cntx;
-  int system_mode = cntx->system_mode;
-  port_type_t port_type = cntx->ptype;
   int dpdk_port = cntx->dpdk_port_id;
 
   uint16_t qid = cntx->default_qid;
@@ -55,7 +53,7 @@ int do_client(void *_cntx) {
   uint32_t base_port_number = cntx->base_port_number;
   uint8_t use_vlan = cntx->use_vlan;
   uint8_t bidi = cntx->bidi;
-  /* uint64_t delay_cycles = cntx->delay_cycles; */
+  uint64_t delay_cycles = cntx->delay_cycles;
   assert(count_dst_ip >= 1);
 
   uint64_t start_time, end_time;
@@ -112,7 +110,7 @@ int do_client(void *_cntx) {
   memset(total_received_pkts, 0, sizeof(uint64_t) * count_dst_ip);
   memset(failed_to_push, 0, sizeof(uint64_t) * count_dst_ip);
 
-  uint8_t cdq = system_mode == system_bkdrft;
+  uint8_t cdq = 0;
 
   // hardcoded burst size TODO: get from args
   uint16_t burst_sizes[count_dst_ip];
@@ -149,7 +147,7 @@ int do_client(void *_cntx) {
     throughput[i] = 0;
   }
 
-  if (port_type == dpdk && rte_eth_dev_socket_id(dpdk_port) > 0 &&
+  if (rte_eth_dev_socket_id(dpdk_port) > 0 &&
       rte_eth_dev_socket_id(dpdk_port) != (int)rte_socket_id()) {
     printf("Warning port is on remote NUMA node\n");
   }
@@ -460,8 +458,6 @@ void *_run_receiver_thread(void *_arg)
   uint64_t *total_received_pkts = arg->total_received_pkts;
 
   // context values
-  port_type_t port_type = cntx->ptype;
-  int system_mode = cntx->system_mode;
   int dpdk_port = cntx->dpdk_port_id;
   int qid = cntx->default_qid;
   int count_queues = cntx->count_queues;
@@ -478,7 +474,7 @@ void *_run_receiver_thread(void *_arg)
   int nb_rx;
   int rx_q;
   int valid_pkt;
-  uint8_t cdq = system_mode == system_bkdrft;
+  uint8_t cdq = 0;
   char *ptr;
   struct rte_ether_hdr *eth_hdr;
   // struct rte_vlan_hdr *vlan_hdr;
@@ -495,9 +491,7 @@ void *_run_receiver_thread(void *_arg)
     end_time = rte_get_timer_cycles();
     nb_rx = 0;
     for (rx_q = qid; rx_q < qid + count_queues; rx_q++) {
-      if (port_type == dpdk) {
-        nb_rx = rte_eth_rx_burst(dpdk_port, rx_q, recv_bufs, BURST_SIZE);
-      }
+      nb_rx = rte_eth_rx_burst(dpdk_port, rx_q, recv_bufs, BURST_SIZE);
       if (nb_rx != 0)
         break;
     }
@@ -508,9 +502,7 @@ void *_run_receiver_thread(void *_arg)
       // rte_pktmbuf_free(buf); // free packet
       // continue;
 
-      if (port_type == dpdk) {
-        valid_pkt = check_eth_hdr(src_ip, &my_eth, buf, tx_mem_pool, cdq);
-      }
+      valid_pkt = check_eth_hdr(src_ip, &my_eth, buf, tx_mem_pool, cdq);
       if (unlikely(!valid_pkt)) {
         // printf("invalid packet\n");
         rte_pktmbuf_free(buf);
