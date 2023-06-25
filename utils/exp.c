@@ -23,6 +23,13 @@ void ip_to_str(uint32_t addr, char *str, uint32_t size) {
   snprintf(str, size, "%hhu.%hhu.%hhu.%hhu", bytes[3], bytes[2], bytes[1], bytes[0]);
 }
 
+
+static void print_mac(struct rte_ether_addr *addr) {
+  uint8_t *bytes = addr->addr_bytes;
+  printf("addr: %x:%x:%x:%x:%x:%x\n", bytes[0], bytes[1], bytes[2], bytes[3],
+         bytes[4], bytes[5]);
+}
+
 /*
 * Check if the packet is for this host
 * Also send reply for ARP requests
@@ -39,7 +46,8 @@ int check_eth_hdr(uint32_t my_ip, struct rte_ether_addr *host_mac,
   if (!rte_is_same_ether_addr(&ptr_mac_hdr->dst_addr, host_mac) &&
       !rte_is_broadcast_ether_addr(&ptr_mac_hdr->dst_addr)) {
     /* packet not to our ethernet addr */
-    // printf("not our ether, here\n");
+    printf("not our ether, here\n");
+    print_mac(&ptr_mac_hdr->dst_addr);
     return 0;
   }
 

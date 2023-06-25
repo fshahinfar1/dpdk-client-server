@@ -14,7 +14,6 @@
 #define MAX_EXPECTED_LATENCY (100000) // (us)
 
 void print_stats(FILE *fp, uint64_t tp, struct p_hist *hist);
-void print_mac(struct rte_ether_addr *addr);
 
 void print_stats(FILE *fp, __attribute__((unused)) uint64_t tp, struct p_hist *hist) {
   float percentile;
@@ -37,12 +36,6 @@ void print_stats(FILE *fp, __attribute__((unused)) uint64_t tp, struct p_hist *h
   percentile = get_percentile(hist, 0.9999);
   fprintf(fp, "Latency [@99.99](us): %f\n", percentile);
   fprintf(fp, "====================================\n");
-}
-
-void print_mac(struct rte_ether_addr *addr) {
-  uint8_t *bytes = addr->addr_bytes;
-  printf("addr: %x:%x:%x:%x:%x:%x\n", bytes[0], bytes[1], bytes[2], bytes[3],
-         bytes[4], bytes[5]);
 }
 
 int do_server(void *_cntx) {
@@ -85,10 +78,10 @@ int do_server(void *_cntx) {
   char *ptr;
 
   // histogram for calculating latency percentiles
-  struct p_hist *hist;
-  uint64_t ts_offset;
-  uint64_t timestamp;
-  __attribute__((unused)) uint64_t latency;
+  /* struct p_hist *hist; */
+  /* uint64_t ts_offset; */
+  /* uint64_t timestamp; */
+  /* uint64_t latency; */
 
   uint64_t i;
   struct rte_mbuf *tx_buf[64];
@@ -117,7 +110,7 @@ int do_server(void *_cntx) {
   for (i = 0; i < count_queues; i++)
     queue_status[i] = 0;
 
-  hist = new_p_hist_from_max_value(MAX_EXPECTED_LATENCY);
+  /* hist = new_p_hist_from_max_value(MAX_EXPECTED_LATENCY); */
 
   /* check if running on the correct numa node */
   if (rte_eth_dev_socket_id(dpdk_port) > 0 &&
@@ -133,13 +126,13 @@ int do_server(void *_cntx) {
   fprintf(fp, "\n");
 
   /* timestamp offset from the data section of the packet */
-  if (use_vlan) {
-    ts_offset = RTE_ETHER_HDR_LEN + sizeof(struct rte_vlan_hdr)
-                    + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_udp_hdr);
-  } else {
-    ts_offset = RTE_ETHER_HDR_LEN + sizeof(struct rte_ipv4_hdr)
-                    + sizeof(struct rte_udp_hdr);
-  }
+  /* if (use_vlan) { */
+  /*   ts_offset = RTE_ETHER_HDR_LEN + sizeof(struct rte_vlan_hdr) */
+  /*                   + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_udp_hdr); */
+  /* } else { */
+  /*   ts_offset = RTE_ETHER_HDR_LEN + sizeof(struct rte_ipv4_hdr) */
+  /*                   + sizeof(struct rte_udp_hdr); */
+  /* } */
 
   fprintf(fp, "Running server\n");
 
@@ -219,10 +212,12 @@ int do_server(void *_cntx) {
        * is incorrect
        * */
       if (bidi) {
+
         valid_pkt = check_eth_hdr(my_ip, &my_eth, buf, tx_mem_pool, cdq);
 
         if (!valid_pkt) {
           // free packet
+          printf("invalid packet\n");
           rte_pktmbuf_free(rx_bufs[i]);
           continue;
         }
@@ -246,14 +241,14 @@ int do_server(void *_cntx) {
       }
 
       if (use_vlan) {
-        ipv4_hdr = (struct rte_ipv4_hdr *)(ptr + RTE_ETHER_HDR_LEN +
-                                         sizeof(struct rte_vlan_hdr));
+        ipv4_hdr = (struct rte_ipv4_hdr *)(ptr + RTE_ETHER_HDR_LEN + sizeof(struct rte_vlan_hdr));
       } else {
         ipv4_hdr = (struct rte_ipv4_hdr *)(ptr + RTE_ETHER_HDR_LEN);
       }
 
       /* if ip address does not match discard the packet */
       if (rte_be_to_cpu_32(ipv4_hdr->dst_addr) != my_ip) {
+        printf("ip address does not match\n");
         rte_pktmbuf_free(rx_bufs[i]);
         continue;
       }
@@ -271,14 +266,14 @@ int do_server(void *_cntx) {
       udp_hdr = (struct rte_udp_hdr *)(ipv4_hdr + 1);
 
       // Service time 5ns per packet
-      wait(get_exponential_sample(0.2));
+      /* wait(get_exponential_sample(0.2)); */
 
       /* get time stamp */
-      ptr = ptr + ts_offset;
-      timestamp = (*(uint64_t *)ptr);
+      /* ptr = ptr + ts_offset; */
+      /* timestamp = (*(uint64_t *)ptr); */
       /* TODO: the following line only works on single node */
-      latency = (rte_get_timer_cycles() - timestamp) * 1000 * 1000 / rte_get_timer_hz(); //(us)
-      add_number_to_p_hist(hist, (float)latency);
+      /* latency = (rte_get_timer_cycles() - timestamp) * 1000 * 1000 / rte_get_timer_hz(); //(us) */
+      /* add_number_to_p_hist(hist, (float)latency); */
 
       // if (src_port >= 8000) {
         // this packet needs heavy processing
@@ -286,6 +281,7 @@ int do_server(void *_cntx) {
       // }
 
       if (!bidi) {
+        printf("drop beacuse it is not bidi\n");
         rte_pktmbuf_free(rx_bufs[i]);
         continue;
       }
@@ -343,15 +339,15 @@ int do_server(void *_cntx) {
     // failed_to_push += k - nb_tx;
   }
 
-  if (!bidi)
-    print_stats(fp, 0, hist);
+  /* if (!bidi) */
+  /*   print_stats(fp, 0, hist); */
   fprintf(fp, "failed to push %ld\n", failed_to_push);
   fprintf(fp, "average cycles error %f\n", cycles_error);
   fprintf(fp, "=================================\n");
   fflush(fp);
 
   /* free allocated memory */
-  free_p_hist(hist);
+  /* free_p_hist(hist); */
   cntx->running = 0;
   return 0;
 }

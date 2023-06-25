@@ -57,8 +57,7 @@ int do_client(void *_cntx) {
   assert(count_dst_ip >= 1);
 
   uint64_t start_time, end_time;
-  uint64_t duration = (cntx->duration < 0) ? 0 : ((unsigned int)cntx->duration)
-    * rte_get_timer_hz();
+  uint64_t duration = (cntx->duration < 0) ? 0 : ((unsigned int)cntx->duration) * rte_get_timer_hz();
   uint64_t ignore_result_duration = 0;
 
   struct rte_mbuf *bufs[BURST_SIZE];
@@ -118,8 +117,6 @@ int do_client(void *_cntx) {
 
   struct zipfgen *dst_zipf;
   struct zipfgen *queue_zipf;
-
-  /* int tmp = 0; */
 
   pthread_t recv_thread;
 
@@ -230,13 +227,6 @@ int do_client(void *_cntx) {
       }
       k = selected_dst;
       burst = burst_sizes[selected_dst];
-      // JUST FOR TESTING
-      /* if (tmp % 8 == 0) */
-      /*   burst = burst_sizes[selected_dst]; */
-      /* else */
-      /*   burst = 32; */
-      /* tmp++; */
-      /* tmp = tmp % 8; */
 
       if (cntx->destination_distribution == DIST_ZIPF) {
         selected_dst = dst_zipf->gen(dst_zipf) - 1;
