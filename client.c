@@ -133,17 +133,9 @@ int do_client(void *_cntx) {
   }
   burst = burst_sizes[0];
 
-  fprintf(fp, "sending on queues: [%d, %d]\n", qid, qid + count_queues - 1);
+  /* fprintf(fp, "sending on queues: [%d, %d]\n", qid, qid + count_queues - 1); */
   for (i = 0; i < count_dst_ip * count_flow; i++) {
-    /* Try to sending each destinations packets on a different queue.
-     * In CDQ mode the queue zero is reserved for later use.
-     * This mode is only used for uniform queue selection distribution.
-     * */
-    if (cdq)
-      flow_q[i] = qid + (i % count_queues);
-    else
-      flow_q[i] = qid + (i % count_queues);
-
+    flow_q[i] = qid + (i % count_queues);
     throughput[i] = 0;
   }
 
@@ -322,24 +314,10 @@ int do_client(void *_cntx) {
         buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_udp_hdr) +
                                               payload_length);
         udp_hdr = (struct rte_udp_hdr *)buf_ptr;
-        // udp_hdr = (struct rte_udp_hdr *)(ipv4_hdr + 1);
-
-        /* Just for testing */
-        /*
-        if (src_ip == 0xC0A8010B && cntx->worker_id == 0) {
-          // TODO: this is just for experimenting
-          uint16_t off = queue_zipf->gen(queue_zipf) - 1;
-          udp_hdr->src_port = rte_cpu_to_be_16(1001 + off);
-          udp_hdr->dst_port = rte_cpu_to_be_16(60900);
-        } else {
-          udp_hdr->src_port = rte_cpu_to_be_16(src_port);
-          udp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
-        } */
 
         udp_hdr->src_port = rte_cpu_to_be_16(src_port);
         udp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
-        udp_hdr->dgram_len =
-            rte_cpu_to_be_16(sizeof(struct rte_udp_hdr) + payload_length);
+        udp_hdr->dgram_len = rte_cpu_to_be_16(sizeof(struct rte_udp_hdr) + payload_length);
         udp_hdr->dgram_cksum = 0;
 
         /* payload */
@@ -363,7 +341,8 @@ int do_client(void *_cntx) {
       }
 
       /* send packets */
-      nb_tx = rte_eth_tx_burst(dpdk_port, selected_q, bufs, k);
+      /* printf("sending: %d %d %d\n", dpdk_port, selected_q, burst); */
+      nb_tx = rte_eth_tx_burst(dpdk_port, selected_q, bufs, burst);
 
       if (likely(end_time > start_time + ignore_result_duration * hz)) {
         total_sent_pkts[k] += nb_tx;
@@ -504,7 +483,7 @@ void *_run_receiver_thread(void *_arg)
 
       valid_pkt = check_eth_hdr(src_ip, &my_eth, buf, tx_mem_pool, cdq);
       if (unlikely(!valid_pkt)) {
-        // printf("invalid packet\n");
+        printf("invalid packet\n");
         rte_pktmbuf_free(buf);
         continue;
       }
