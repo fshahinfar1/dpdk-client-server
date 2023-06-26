@@ -174,6 +174,9 @@ int do_latency_client(void *_cntx)
 			measurements[m_index++] = latency;
 			assert(m_index < max_measure_size);
 		}
+
+		// wait some time
+		wait(1000000LL);
 	}
 	report_measurements(measurements, m_index);
 	return 0;

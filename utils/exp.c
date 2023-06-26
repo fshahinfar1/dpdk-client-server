@@ -68,10 +68,6 @@ int check_eth_hdr(uint32_t my_ip, struct rte_ether_addr *host_mac,
   return 1;
 }
 
-/*
-* Check if the packet is for this host
-* Also send reply for ARP requests
-*/
 void wait(uint64_t ns) {
   uint64_t start , now, d;
   start = rte_get_timer_cycles();
