@@ -22,9 +22,11 @@ void handle_int(__attribute__((unused)) int sig) {
 
 static void report_measurements(uint64_t *m, size_t count)
 {
+	printf("-------------------------------------\n");
 	for (size_t i = 0; i < count; i++) {
 		printf("%ld\n", m[i]);
 	}
+	printf("-------------------------------------\n");
 }
 
 int do_latency_client(void *_cntx)
