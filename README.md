@@ -6,3 +6,20 @@ different destination and measures throughput and latency.
 ## Build
 
 Look at `INSTALL` file.
+
+
+## Measure Latency
+
+
+**machine 1:**
+
+```bash
+sudo ./build/app -a 41:00.0 -l 4 --  192.168.1.1 1 server 0
+```
+
+**machine 2:**
+
+```bash
+sudo ./build/app -a 41:00.0 -l 4 -- 192.168.1.2 1 client 1 192.168.1.1 1 5 3000 0 > /tmp/log
+bash latency_script.sh /tmp/log
+```
