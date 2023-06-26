@@ -70,8 +70,8 @@ int check_eth_hdr(uint32_t my_ip, struct rte_ether_addr *host_mac,
     struct rte_mbuf *buf, struct rte_mempool *tx_mbuf_pool, uint8_t cdq);
 
 int do_server(void *cntx);
-
 int do_client(void *cntx);
+int do_latency_client(void *cntx);
 
 void wait(uint64_t ns);
 #endif // __SLOW_RECEIVER_EXP_

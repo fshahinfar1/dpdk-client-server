@@ -145,10 +145,8 @@ int main(int argc, char *argv[]) {
   struct context cntxs[20] = {};
   char *output_buffers[20] = {};
 
-  /* multi-core */
   // how many cores is allocated to the program (dpdk)
-  // default value should be 1.
-  int count_core = 1;
+  int count_core;
   int lcore_id;
   int cntxIndex;
 
@@ -260,7 +258,7 @@ int main(int argc, char *argv[]) {
   }
 
   cntxIndex = 1;
-  if (config.mode) {
+  if (config.mode == mode_server) {
     RTE_LCORE_FOREACH_WORKER(lcore_id) {
       rte_eal_remote_launch(do_server, (void *)&cntxs[cntxIndex++], lcore_id);
     }
@@ -280,9 +278,9 @@ int main(int argc, char *argv[]) {
     }
   } else {
     RTE_LCORE_FOREACH_WORKER(lcore_id) {
-      rte_eal_remote_launch(do_client, (void *)&cntxs[cntxIndex++], lcore_id);
+      rte_eal_remote_launch(do_latency_client, (void *)&cntxs[cntxIndex++], lcore_id);
     }
-    do_client(&cntxs[0]);
+    do_latency_client(&cntxs[0]);
     rte_eal_mp_wait_lcore();
 
     for (int i = 0; i < count_core; i++) {
