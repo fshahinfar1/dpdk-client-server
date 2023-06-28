@@ -183,7 +183,7 @@ recv:
 			goto recv;
 
 		// wait some time
-		wait(1000000LL);
+		wait(100000000LL);
 	}
 	report_measurements(measurements, m_index);
 	return 0;

@@ -3,4 +3,5 @@
 *.a
 *.so
 build/*
+rdma-core/*
 tags
