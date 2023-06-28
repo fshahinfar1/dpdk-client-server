@@ -139,8 +139,8 @@ int do_latency_client(void *_cntx)
 			buf->ol_flags = RTE_MBUF_F_TX_IP_CKSUM | RTE_MBUF_F_TX_IPV4;
 		}
 		nb_tx = rte_eth_tx_burst(dpdk_port, qid, bufs, burst);
-		assert(nb_tx == burst);
 
+recv:
 		// wait for response
 		nb_rx = 0;
 		while(running) {
@@ -149,6 +149,8 @@ int do_latency_client(void *_cntx)
 				break;
 		}
 		resp_recv_time = rte_get_timer_cycles();
+		assert(nb_tx >= nb_rx);
+		nb_tx -= nb_rx;
 
 		for (uint32_t j = 0; j < nb_rx; j++) {
 			buf = bufs[j];
@@ -176,6 +178,9 @@ int do_latency_client(void *_cntx)
 			measurements[m_index++] = latency;
 			assert(m_index < max_measure_size);
 		}
+
+		if (nb_tx > 0)
+			goto recv;
 
 		// wait some time
 		wait(1000000LL);
