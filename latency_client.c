@@ -15,9 +15,13 @@
 
 #define BURST_SIZE (8)
 
+static uint8_t in_the_loop = 0;
 static uint8_t running = 1;
 void handle_int(__attribute__((unused)) int sig) {
 	running = 0;
+	if (!in_the_loop) {
+		rte_exit(EXIT_FAILURE, "Interrupted!");
+	}
 }
 
 static void report_measurements(uint64_t *m, size_t count)
@@ -92,6 +96,7 @@ int do_latency_client(void *_cntx)
 	uint64_t *measurements = calloc(max_measure_size, sizeof(uint64_t)); 
 	size_t m_index = 0;
 
+	in_the_loop = 1;
 	while(running) {
 		// allocate some packets ! notice they should either be sent or freed
 		if (rte_pktmbuf_alloc_bulk(tx_mem_pool, bufs, BURST_SIZE)) {
@@ -124,8 +129,8 @@ int do_latency_client(void *_cntx)
 			// upd header
 			buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_udp_hdr) + payload_length);
 			udp_hdr = (struct rte_udp_hdr *)buf_ptr;
-			udp_hdr->src_port =src_port;
-			udp_hdr->dst_port =dst_port;
+			udp_hdr->src_port = src_port;
+			udp_hdr->dst_port = dst_port;
 			udp_hdr->dgram_len = udp_total_len;
 			udp_hdr->dgram_cksum = 0;
 			// payload (timestamp)
@@ -136,10 +141,14 @@ int do_latency_client(void *_cntx)
 			// flags
 			buf->l2_len = RTE_ETHER_HDR_LEN;
 			buf->l3_len = sizeof(struct rte_ipv4_hdr);
-			buf->ol_flags = RTE_MBUF_F_TX_IP_CKSUM | RTE_MBUF_F_TX_IPV4;
+			buf->ol_flags = (RTE_MBUF_F_TX_IP_CKSUM |
+					RTE_MBUF_F_TX_IPV4 |
+					RTE_MBUF_F_TX_UDP_CKSUM);
+
+			ipv4_hdr->hdr_checksum = rte_ipv4_cksum(ipv4_hdr);
+			udp_hdr->dgram_cksum = rte_ipv4_udptcp_cksum(ipv4_hdr, udp_hdr);
 		}
 		nb_tx = rte_eth_tx_burst(dpdk_port, qid, bufs, burst);
-
 recv:
 		// wait for response
 		nb_rx = 0;
@@ -149,8 +158,7 @@ recv:
 				break;
 		}
 		resp_recv_time = rte_get_timer_cycles();
-		assert(nb_tx >= nb_rx);
-		nb_tx -= nb_rx;
+		/* assert(nb_tx >= nb_rx); */
 
 		for (uint32_t j = 0; j < nb_rx; j++) {
 			buf = bufs[j];
@@ -161,6 +169,7 @@ recv:
 				rte_pktmbuf_free(buf);
 				continue;
 			}
+			nb_tx -= 1;
 
 			eth_hdr = rte_pktmbuf_mtod(buf, struct rte_ether_hdr *);
 			if (rte_be_to_cpu_16(eth_hdr->ether_type) != RTE_ETHER_TYPE_IPV4) {
@@ -179,11 +188,11 @@ recv:
 			assert(m_index < max_measure_size);
 		}
 
-		if (nb_tx > 0)
+		if (nb_tx > 0 && running)
 			goto recv;
 
 		// wait some time
-		wait(100000000LL);
+		/* wait(100000000LL); */
 	}
 	report_measurements(measurements, m_index);
 	return 0;

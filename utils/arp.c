@@ -27,7 +27,7 @@ void _prepare_arp_pkt(struct rte_mbuf *buf, uint16_t op,
   // arp header
   buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_arp_hdr));
   a_hdr = (struct rte_arp_hdr *) buf_ptr;
-  // a_hdr->arp_hrd = rte_cpu_to_be_16(RTE_ARP_HRD_ETHER);
+  a_hdr->arp_hardware = rte_cpu_to_be_16(RTE_ARP_HRD_ETHER);
   a_hdr->arp_protocol = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
   a_hdr->arp_hlen = RTE_ETHER_ADDR_LEN;
   a_hdr->arp_plen = 4;

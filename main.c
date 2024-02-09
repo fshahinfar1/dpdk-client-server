@@ -209,6 +209,7 @@ int main(int argc, char *argv[]) {
     cntxs[i].rate = config.client.rate;
 
     if (config.mode == mode_server) {
+      cntxs[i].dst_port = 0;
       cntxs[i].src_port = config.server_port;
       cntxs[i].managed_queues = malloc(queue_per_core * sizeof(uint32_t));
       for (int q = 0; q < queue_per_core; q++) {
@@ -242,6 +243,7 @@ int main(int argc, char *argv[]) {
       cntxs[i].count_dst_ip = ips;
       cntxs[i].dst_port = config.server_port;
       cntxs[i].payload_length = config.payload_size;
+      printf("server port is %d\n", config.server_port);
 
       cntxs[i].count_flow = config.client.count_flow / count_core;
       cntxs[i].base_port_number = config.server_port;

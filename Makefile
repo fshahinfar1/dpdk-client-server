@@ -3,12 +3,13 @@ CC = gcc
 COptFlag = -O3 -g
 CWarningFlags = -Werror -Wall -Wextra -Wcast-align -Wno-return-type
 CFLAGS += \
-	  -iquote ./include -D_GNU_SOURCE \
-	  $(COptFlag) \
-	  $(CWarningFlags) \
-	  $(shell $(PKGCONF) --cflags libdpdk)
+					-iquote ./include -D_GNU_SOURCE \
+					$(COptFlag) \
+					$(CWarningFlags) \
+					$(shell $(PKGCONF) --cflags libdpdk)
 
-LDFLAGS += $(shell $(PKGCONF) --libs libdpdk)
+
+LDFLAGS += $(shell $(PKGCONF) --libs libdpdk) -lmlx5
 
 # $(info CFLAGS:)
 # $(info  $(CFLAGS))
@@ -51,7 +52,7 @@ default: $(OUTPUT_DIR) $(APP)
 
 # Actually building the app
 $(APP): $(SRCS) $(HEADER_FILES) Makefile
-	$(CC) -o $@ $(SRCS) $(CFLAGS) $(LDFLAGS) $(LIBS)
+	$(CC) -o $@ $(CFLAGS) $(SRCS) $(LDFLAGS) $(LIBS)
 
 # Make sure that output directory exists
 $(OUTPUT_DIR):

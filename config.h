@@ -166,8 +166,8 @@ static void parse_args(int argc, char *argv[])
   // default values
   config.bidi = 1;
   config.payload_size = 64;
-  config.client.client_port = rte_cpu_to_be_16(3000);
-  config.server_port = rte_cpu_to_be_16(8080);
+  config.client.client_port = 3000;
+  config.server_port = 8080;
 
   // let dpdk parse its own arguments
   uint32_t args_parsed = dpdk_init(argc, argv);

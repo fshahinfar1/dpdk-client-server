@@ -7,6 +7,8 @@ different destination and measures throughput and latency.
 
 Look at `INSTALL` file.
 
+> If you have a Mellanox NIC add `-lmlx5` or `-lmxl4` to the `LDFLAGS`.
+
 
 ## Measure Latency
 
