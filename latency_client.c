@@ -92,7 +92,7 @@ int do_latency_client(void *_cntx)
 
 	assert(cntx->count_queues == 1);
 
-	const size_t max_measure_size = 10000000;
+	const size_t max_measure_size = 1000000000LL;
 	uint64_t *measurements = calloc(max_measure_size, sizeof(uint64_t)); 
 	size_t m_index = 0;
 
