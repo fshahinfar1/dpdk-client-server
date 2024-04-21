@@ -16,12 +16,12 @@ Look at `INSTALL` file.
 **machine 1:**
 
 ```bash
-sudo ./build/app -a 41:00.0 -l 4 --  192.168.1.1 1 server 0
+sudo ./build/app -l 2 -a 41:00.0 -- --server --ip-local 192.168.1.1
 ```
 
 **machine 2:**
 
 ```bash
-sudo ./build/app -a 41:00.0 -l 4 -- 192.168.1.2 1 client 1 192.168.1.1 1 5 3000 0 > /tmp/log
+sudo ./build/app -a 41:00.0 -l 2 -- --latency-client --ip-local 192.168.1.2 --ip-dest 192.168.1.1 --batch 1 &> /tmp/log
 bash latency_script.sh /tmp/log
 ```
