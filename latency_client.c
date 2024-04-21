@@ -99,7 +99,7 @@ int do_latency_client(void *_cntx)
 	in_the_loop = 1;
 	while(running) {
 		// allocate some packets ! notice they should either be sent or freed
-		if (rte_pktmbuf_alloc_bulk(tx_mem_pool, bufs, BURST_SIZE)) {
+		if (rte_pktmbuf_alloc_bulk(tx_mem_pool, bufs, burst)) {
 			// allocating failed
 			continue;
 		}
@@ -157,7 +157,7 @@ recv:
 			if (nb_rx != 0)
 				break;
 		}
-		printf("recv: %d\n", nb_rx);
+		// printf("recv: %d\n", nb_rx);
 		resp_recv_time = rte_get_timer_cycles();
 		/* assert(nb_tx >= nb_rx); */
 

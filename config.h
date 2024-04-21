@@ -68,7 +68,7 @@ static void print_usage_server(void)
 {
   printf("Usage: ./app [DPDK EAL arguments] -- --server [Server arguments]\n"
       "    --ip-local\n"
-      "    --port\n    [default: 8080]\n"
+      "    --port      [default: 8080]\n"
       "    --num-queue [default: 1]\n"
       "    --delay     [default: 0]\n"
       );
