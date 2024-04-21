@@ -86,6 +86,10 @@ int do_latency_client(void *_cntx)
 			server_eth.addr_bytes[3],server_eth.addr_bytes[4],server_eth.addr_bytes[5]);
 	printf("ARP requests finished\n");
 
+	// Or use hard-coded mac address
+	/* char tmp[6] = {0x0C,0x42,0xA1,0xDD,0x57,0xB8}; */
+	/* memcpy(&server_eth.addr_bytes, tmp, 6); */
+
 
 	uint32_t dst_ip_net = rte_cpu_to_be_32(dst_ip);
 	uint32_t src_ip_net = rte_cpu_to_be_32(src_ip);

@@ -235,8 +235,9 @@ static void parse_args(int argc, char *argv[])
         config.mode = mode_latency_clinet;
         break;
       case IP_LOCAL:
-        ret = inet_pton(AF_INET, optarg, &config.source_ip);
-        if (ret == 0) {
+        /* ret = inet_pton(AF_INET, optarg, &config.source_ip); */
+        ret = str_to_ip(optarg, &config.source_ip);
+        if (ret != 0) {
           rte_exit(EXIT_FAILURE, "Failed to read source ip address\n");
         }
         break;
@@ -247,8 +248,9 @@ static void parse_args(int argc, char *argv[])
           rte_exit(EXIT_FAILURE, "Maximum number of destination servers have been reached\n");
         }
         config.client.count_server_ips++;
-        ret = inet_pton(AF_INET, optarg, &config.client.server_ips[i]);
-        if (ret == 0) {
+        /* ret = inet_pton(AF_INET, optarg, &config.client.server_ips[i]); */
+        ret = str_to_ip(optarg, &config.client.server_ips[i]);
+        if (ret != 0) {
           rte_exit(EXIT_FAILURE, "Failed to read destination ip address\n");
         }
         break;
