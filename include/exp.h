@@ -56,6 +56,7 @@ struct context {
 
   uint8_t rate_limit; // true or false
   uint64_t rate; // pps
+  uint16_t batch;
 };
 
 static const struct rte_ether_addr broadcast_mac = {

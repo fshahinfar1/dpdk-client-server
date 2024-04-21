@@ -1,14 +1,22 @@
 # ifndef _CONFIG_H
 # define _CONFIG_H
+#include <arpa/inet.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <getopt.h>
+#include <unistd.h>
 #include "include/exp.h"
 
 #define SHIFT_ARGS {argc--;if(argc>0)argv[1]=argv[0];argv++;};
+#define MAX_SERVER_IP_DEST 32
+#define MAX_BATCH_SIZE 64
 
 enum {
-  mode_client = 0,
-  mode_server = 1,
+  mode_undefined = 0,
+  mode_client,
+  mode_server,
+  mode_latency_clinet,
 };
 
 // Some types
@@ -23,6 +31,7 @@ struct client_config {
   uint8_t rate_limit;
   uint64_t rate;
   uint64_t delay_cycles;
+  uint16_t batch;
 };
 
 struct server_config {
@@ -47,170 +56,298 @@ struct app_config {
 // Some global variables
 extern struct app_config config;
 
-
-static void print_usage(void)
+static void print_usage_app(void)
 {
-  printf("usage: ./app [DPDK EAL arguments] -- [Client arguments]\n"
-  "arguments:\n"
-  "    * (optional) bidi=<true/false> [default: true]\n"
-  "    * source_ip: ip of host on which app is running (useful for arp)\n"
-  "    * number of queue\n"
-  "    * mode: client or server\n"
-  "[client]\n"
-  "    * count destination ips\n"
-  "    * valid ip values (as many as defined in prev. param)\n"
-  "    * count flow\n"
-  "    * experiment duration (zero means run with out a limit)\n"
-  "    * client port\n"
-  "    * client delay cycles\n"
-  "    * rate value (pps)\n"
-  "[server]\n"
-  "    * server delay for each batch\n");
+  printf("Usage: ./app [DPDK EAL arguments] -- [App arguments]\n"
+      "    --client\n"
+      "    --latency-client\n"
+      "    --server\n");
 }
 
-static void parse_client(int argc, char *argv[])
+static void print_usage_server(void)
 {
-  // client
-  config.mode = mode_client;
-  SHIFT_ARGS;
-
-  // parse client arguments
-  if (argc < 4) {
-    print_usage();
-    rte_exit(EXIT_FAILURE, "Wrong number of arguments for the client app");
-  }
-
-  config.client.count_server_ips = atoi(argv[1]);
-  SHIFT_ARGS;
-  if ((uint32_t)argc < 3 + config.client.count_server_ips) {
-    print_usage();
-    rte_exit(EXIT_FAILURE, "Wrong number of arguments for the client (number of ips does not match)");
-  }
-
-  config.client.server_ips = malloc(config.client.count_server_ips * sizeof(uint32_t));
-  for (uint32_t i = 0; i < config.client.count_server_ips; i++) {
-    str_to_ip(argv[1], config.client.server_ips + i);
-    SHIFT_ARGS;
-  }
-
-  config.client.count_flow = atoi(argv[1]);
-  if (config.client.count_flow < 1) {
-    rte_exit(EXIT_FAILURE, "number of flows should be at least one");
-  }
-  printf("Count flows: %d\n", config.client.count_flow);
-  SHIFT_ARGS;
-
-  if (argc > 1) {
-    config.client.duration = atoi(argv[1]);
-    SHIFT_ARGS;
-  }
-  printf("Experiment duration: %d\n", config.client.duration);
-
-  if (argc > 1) {
-    config.client.client_port = atoi(argv[1]);
-    SHIFT_ARGS;
-  }
-  printf("Client port: %d\n", config.client.client_port);
-
-  if (argc > 1) {
-    config.client.delay_cycles = atol(argv[1]);
-    SHIFT_ARGS;
-  }
-  printf("Client processing between each packet %ld cycles\n", config.client.delay_cycles);
-
-  if (argc > 1) {
-    config.client.rate_limit = 1;
-    config.client.rate = atol(argv[1]);
-    SHIFT_ARGS
-  }
-
-  if (config.client.rate_limit) {
-    printf("Client rate limit is on rate: %ld\n", config.client.rate);
-  } else {
-    printf("Client rate limit is off\n");
-  }
+  printf("Usage: ./app [DPDK EAL arguments] -- --server [Server arguments]\n"
+      "    --ip-local\n"
+      "    --port\n    [default: 8080]\n"
+      "    --num-queue [default: 1]\n"
+      "    --delay     [default: 0]\n"
+      );
 }
 
-static void parse_server(int argc, char *argv[])
+static void print_usage_client(void)
 {
-  // server
-  config.mode = mode_server;
-  SHIFT_ARGS;
+  printf("Usage: ./app [DPDK EAL arguments] -- --client [Client arguments]\n"
+      "    --ip-local\n"
+      "    --ip-dest\n"
+      "    --num-flow\n"
+      "    --duration\n"
+      "    --port client UDP port number [default: 3000]\n"
+      "    --port-dest server UDP port [default: 8080]\n"
+      "    --delay (cycles) [default: 0 no dleay]\n"
+      "    --rate (pps)     [default: 0 no rate limit]\n"
+      "    --payload (UDP payload size) [default: 64 bytes]\n"
+      "    --batch   [default: 32]\n"
+      );
+}
 
-  // parse server arguments
-  if (argc < 1) {
-    rte_exit(EXIT_FAILURE, "wrong number of arguments for server");
-    print_usage();
+static void print_usage_latency_client(void)
+{
+  printf(
+      "Descrition: Send a batch of packets toward server and wait for echo.\n"
+      "Will not send the next batch until all the packets have been received.\n"
+      "Outputs the observed latency of each packet to stdout\n\n"
+
+      "Usage: ./app [DPDK EAL arguments] -- --latency-client [Client arguments]\n"
+      "    --ip-local\n"
+      "    --ip-dest\n"
+      "    --port client UDP port number [default: 3000]\n"
+      "    --port-dest server UDP port [default: 8080]\n"
+      "    --batch (packets) [default: 1]\n"
+      "    --payload (UDP payload size) [default: 64 bytes]\n"
+      );
+}
+
+static void usage(void)
+{
+  switch (config.mode) {
+    case mode_undefined:
+      print_usage_app();
+      break;
+     case mode_client:
+      print_usage_client();
+      break;
+     case mode_server:
+      print_usage_server();
+      break;
+     case mode_latency_clinet:
+      print_usage_latency_client();
+      break;
+     default:
+      rte_exit(EXIT_FAILURE, "Unexpected mode!\n");
   }
-  config.server.server_delay = atoi(argv[1]);
-  SHIFT_ARGS;
 }
 
 static int dpdk_init(int argc, char *argv[]) {
   int args_parsed;
-
   args_parsed = rte_eal_init(argc, argv);
   if (args_parsed < 0) {
-    print_usage();
+    usage();
     rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
   }
-
   return args_parsed;
 }
 
-/* TODO: this parsing system is not good implement it differently */
+static void check_only_one_mode(void)
+{
+  if (config.mode == mode_undefined)
+    return;
+  rte_exit(EXIT_FAILURE, "Multiple application mode were selected\n");
+}
+
+static void check_client_mode(void)
+{
+  if (config.mode != mode_client && config.mode != mode_latency_clinet) {
+    rte_exit(EXIT_FAILURE, "Expected to be in client mode\n");
+  }
+}
+
 static void parse_args(int argc, char *argv[])
 {
+  int ret;
+  int i;
   memset(&config, 0, sizeof(config));
+  enum opts {
+	  HELP = 500,
+    NUM_QUEUE,
+    CLIENT,
+    SERVER,
+    LATENCY_CLIENT,
+    IP_LOCAL,
+    IP_DEST,
+    PORT,
+    DEST_PORT,
+    SERVER_PORT,
+    NUM_FLOW,
+    DURATION,
+    DELAY,
+    RATE,
+    BATCH_SIZE,
+    PAYLOAD_LENGTH,
+  };
+
+  struct option long_opts[] = {
+	  {"help",               no_argument,       NULL, HELP}, 
+	  {"client",             no_argument,       NULL, CLIENT}, 
+	  {"server",             no_argument,       NULL, SERVER}, 
+	  {"latency-client",     no_argument,       NULL, LATENCY_CLIENT}, 
+	  {"ip-local",           required_argument, NULL, IP_LOCAL},
+	  {"ip-dest",            required_argument, NULL, IP_DEST},
+	  {"port",               required_argument, NULL, PORT},
+	  {"port-dest",          required_argument, NULL, DEST_PORT},
+	  {"num-flow",           required_argument, NULL, NUM_FLOW},
+	  {"duration",           required_argument, NULL, DURATION},
+	  {"delay",              required_argument, NULL, DELAY},
+	  {"rate",               required_argument, NULL, RATE},
+	  {"batch",              required_argument, NULL, BATCH_SIZE},
+	  {"payload",            required_argument, NULL, PAYLOAD_LENGTH},
+	  /* End of option list ------------------- */
+	  {NULL, 0, NULL, 0},
+  };
 
   // default values
   config.bidi = 1;
+  config.use_vlan = 0;
   config.payload_size = 64;
   config.client.client_port = 3000;
   config.server_port = 8080;
+  config.client.count_server_ips = 0;
+  config.client.server_ips = malloc(MAX_SERVER_IP_DEST * sizeof(uint32_t));
+  config.num_queues = 1;
+  config.client.batch = 0;
 
   // let dpdk parse its own arguments
   uint32_t args_parsed = dpdk_init(argc, argv);
   argc -= args_parsed;
   argv += args_parsed;
 
-  if (argc < 4) {
-    printf("argc < 4\n");
-    print_usage();
-    rte_exit(EXIT_FAILURE, "Wrong number of arguments");
-  }
+  while(1) {
+    ret = getopt_long(argc, argv, "", long_opts, NULL);
+    if (ret == -1)
+      break;
+    switch (ret) {
+      case NUM_QUEUE:
+        ret = atoi(optarg);
+        if (ret < 1) {
+          rte_exit(EXIT_FAILURE, "Invalid number of queues\n");
+        }
+        config.num_queues = ret;
+        break;
+      case CLIENT:
+        check_only_one_mode();
+        config.mode = mode_client;
+        break;
+      case SERVER:
+        check_only_one_mode();
+        config.mode = mode_server;
+        break;
+      case LATENCY_CLIENT:
+        check_only_one_mode();
+        config.mode = mode_latency_clinet;
+        break;
+      case IP_LOCAL:
+        ret = inet_pton(AF_INET, optarg, &config.source_ip);
+        if (ret == 0) {
+          rte_exit(EXIT_FAILURE, "Failed to read source ip address\n");
+        }
+        break;
+      case IP_DEST:
+        check_client_mode();
+        i = config.client.count_server_ips;
+        if (i >= MAX_SERVER_IP_DEST) {
+          rte_exit(EXIT_FAILURE, "Maximum number of destination servers have been reached\n");
+        }
+        config.client.count_server_ips++;
+        ret = inet_pton(AF_INET, optarg, &config.client.server_ips[i]);
+        if (ret == 0) {
+          rte_exit(EXIT_FAILURE, "Failed to read destination ip address\n");
+        }
+        break;
 
-  if (strncmp(argv[1], "bidi=", 5) == 0) {
-    if (strncmp(argv[1] + 5, "false", 5) == 0) {
-      config.bidi = 0;
-    } else if (strncmp(argv[1] + 5, "true", 4) == 0) {
-      config.bidi = 1;
-    } else {
-      printf("bidi flag value is not recognized\n");
-      print_usage();
-      return 1;
+      case PORT:
+        ret = atoi(optarg);
+        if (ret <= 0) {
+          rte_exit(EXIT_FAILURE, "Invalid client port number\n");
+        }
+        if (config.mode == mode_undefined) {
+          // Note: this is bad code!
+          rte_exit(EXIT_FAILURE, "Expect to set the application mode before defining local port\n");
+        }
+        if (config.mode == mode_server) {
+          config.server_port = ret;
+        } else {
+          config.client.client_port = ret;
+        }
+        break;
+      case DEST_PORT:
+        check_client_mode();
+        ret = atoi(optarg);
+        if (ret <= 0) {
+          rte_exit(EXIT_FAILURE, "Invalid server port number\n");
+        }
+        config.server_port = ret;
+        break;
+      case NUM_FLOW:
+        config.client.count_flow = atoi(optarg);
+        break;
+      case DURATION:
+        config.client.duration = atoi(optarg);
+        break;
+      case DELAY:
+        if (config.mode == mode_undefined) {
+          // Note: this is bad code!
+          rte_exit(EXIT_FAILURE, "Expect to set the application mode before setting delay cycles\n");
+        }
+        ret = atol(optarg);
+        if (config.mode == mode_server) {
+          config.server.server_delay = ret;
+        } else {
+          config.client.delay_cycles = ret;
+        }
+        break;
+      case RATE:
+        config.client.rate_limit = 1;
+        config.client.rate = atol(optarg);
+        break;
+      case BATCH_SIZE:
+        if (config.mode != mode_latency_clinet) {
+          rte_exit(EXIT_FAILURE, "Expected to be in latency-client mode\n");
+        }
+        ret = atoi(optarg);
+        if (ret < 1) {
+          rte_exit(EXIT_FAILURE, "Unexpected value for batch size\n");
+        }
+        config.client.batch = ret;
+        break;
+      case PAYLOAD_LENGTH:
+        check_client_mode();
+        ret = atoi(optarg);
+        if (ret < 1) {
+          rte_exit(EXIT_FAILURE, "Unexpected value for payload length\n");
+        }
+        config.payload_size = ret;
+        break;
+      case HELP:
+        usage();
+        rte_exit(EXIT_SUCCESS, "!");
+        break;
+      default:
+        usage();
+        rte_exit(EXIT_FAILURE, "!"); 
+        break;
     }
-    SHIFT_ARGS;
   }
 
-  // source_ip
-  str_to_ip(argv[1], &config.source_ip);
-  SHIFT_ARGS;
-
-  // number of queues
-  config.num_queues = atoi(argv[1]);
-  if (config.num_queues < 1) {
-    rte_exit(EXIT_FAILURE, "At least one queue is needed");
+  if (config.mode == mode_undefined) {
+    usage();
+    rte_exit(EXIT_FAILURE, "Application mode not set\n");
   }
-  SHIFT_ARGS;
 
-  // mode
-  if (!strcmp(argv[1], "client")) {
-    parse_client(argc, argv);
-  } else if (!strcmp(argv[1], "server")) {
-    parse_server(argc, argv);
-  } else {
-    rte_exit(EXIT_FAILURE, "Second argument should be `client` or `server`\n");
+  if (config.client.batch == 0) {
+    if (config.mode == mode_client) {
+      config.client.batch = 32;
+    } else if (config.mode == mode_latency_clinet) {
+      config.client.batch = 1;
+    }
+  }
+
+  if (config.source_ip == 0) {
+    rte_exit(EXIT_FAILURE, "Expect source Ip to be set!\n");
+  }
+
+  if (config.client.count_server_ips == 0) {
+    if (config.mode == mode_client || config.mode == mode_latency_clinet) {
+      rte_exit(EXIT_FAILURE, "Expect at least one destination address\n");
+    }
   }
 }
 

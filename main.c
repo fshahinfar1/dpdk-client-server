@@ -256,6 +256,7 @@ int main(int argc, char *argv[]) {
       cntxs[i].queue_selection_distribution = DIST_UNIFORM;
 
       cntxs[i].managed_queues = NULL;
+      cntxs[i].batch = config.client.batch;
     }
   }
 

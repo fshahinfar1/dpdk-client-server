@@ -13,7 +13,7 @@
 #include "arp.h"
 
 
-#define BURST_SIZE (8)
+#define BURST_SIZE (64)
 
 static uint8_t in_the_loop = 0;
 static uint8_t running = 1;
@@ -59,7 +59,7 @@ int do_latency_client(void *_cntx)
 	struct rte_mbuf *bufs[BURST_SIZE];
 	struct rte_mbuf *buf;
 	char *buf_ptr;
-	const uint32_t burst = BURST_SIZE;
+	const uint32_t burst = cntx->batch;
 
 	struct rte_ether_hdr *eth_hdr;
 	struct rte_ipv4_hdr *ipv4_hdr;
@@ -153,10 +153,11 @@ recv:
 		// wait for response
 		nb_rx = 0;
 		while(running) {
-			nb_rx = rte_eth_rx_burst(dpdk_port, qid, bufs, burst);
+			nb_rx = rte_eth_rx_burst(dpdk_port, qid, bufs, BURST_SIZE);
 			if (nb_rx != 0)
 				break;
 		}
+		printf("recv: %d\n", nb_rx);
 		resp_recv_time = rte_get_timer_cycles();
 		/* assert(nb_tx >= nb_rx); */
 
