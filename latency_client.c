@@ -160,11 +160,10 @@ recv:
 		uint8_t lost = 0;
 		while(running) {
 			nb_rx = rte_eth_rx_burst(dpdk_port, qid, bufs, BURST_SIZE);
-			if (nb_rx != 0)
-				break;
+
 			if (rte_get_timer_cycles() - start_since_sent > rte_get_timer_hz()) {
 				lost = 1;
-				continue;
+				break;
 			}
 			if (nb_rx != 0)
 				break;

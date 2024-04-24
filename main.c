@@ -145,6 +145,10 @@ int main(int argc, char *argv[]) {
   struct context cntxs[20] = {};
   char *output_buffers[20] = {};
 
+  // set a function pointer with a context parameter
+  int (*process_function)(void *);
+
+
   // how many cores is allocated to the program (dpdk)
   int count_core;
   int lcore_id;
@@ -280,11 +284,14 @@ int main(int argc, char *argv[]) {
       printf("------  end  ---------\n");
     }
   } else {
+    process_function = (config.mode == mode_latency_clinet) ? do_latency_client
+    : do_client;
+    
     RTE_LCORE_FOREACH_WORKER(lcore_id) {
-      rte_eal_remote_launch(do_latency_client, (void *)&cntxs[cntxIndex++], lcore_id);
+      rte_eal_remote_launch(process_function, (void *)&cntxs[cntxIndex++], lcore_id);
     }
     // do_latency_client(&cntxs[0]);
-    do_client(&cntxs[0]);
+    process_function(&cntxs[0]);
     rte_eal_mp_wait_lcore();
 
     for (int i = 0; i < count_core; i++) {
