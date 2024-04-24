@@ -16,8 +16,10 @@ MEAN=$(( SUM / COUNT ))
 
 MEDIAN=$(( COUNT / 2 ))
 NN=$(( COUNT * 99 / 100 ))
+NNN=$(( COUNT * 999 / 1000 ))
 
 
 echo "Median: ${DATA[$MEDIAN]}"
 echo "Mean: $MEAN"
 echo "99: ${DATA[$NN]}"
+echo "999: ${DATA[$NNN]}"
