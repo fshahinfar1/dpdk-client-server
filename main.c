@@ -283,7 +283,8 @@ int main(int argc, char *argv[]) {
     RTE_LCORE_FOREACH_WORKER(lcore_id) {
       rte_eal_remote_launch(do_latency_client, (void *)&cntxs[cntxIndex++], lcore_id);
     }
-    do_latency_client(&cntxs[0]);
+    // do_latency_client(&cntxs[0]);
+    do_client(&cntxs[0]);
     rte_eal_mp_wait_lcore();
 
     for (int i = 0; i < count_core; i++) {

@@ -156,11 +156,25 @@ int do_latency_client(void *_cntx)
 recv:
 		// wait for response
 		nb_rx = 0;
+		uint64_t start_since_sent = rte_get_timer_cycles();
+		uint8_t lost = 0;
 		while(running) {
 			nb_rx = rte_eth_rx_burst(dpdk_port, qid, bufs, BURST_SIZE);
 			if (nb_rx != 0)
 				break;
+			if (rte_get_timer_cycles() - start_since_sent > rte_get_timer_hz()) {
+				lost = 1;
+				continue;
+			}
+			if (nb_rx != 0)
+				break;
 		}
+
+		if (lost) {
+			lost = 0;
+			continue;
+		}
+
 		// printf("recv: %d\n", nb_rx);
 		resp_recv_time = rte_get_timer_cycles();
 		/* assert(nb_tx >= nb_rx); */

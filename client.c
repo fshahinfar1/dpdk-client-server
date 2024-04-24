@@ -21,6 +21,13 @@
 // function declarations
 void *_run_receiver_thread(void *_arg);
 
+
+// struct token_bucket {
+  // uint64_t tokens; // Current tokens in the bucket
+  // uint64_t rate; // Tokens added per second
+  // uint64_t last_fill; // Last time the bucket was filled
+// };
+
 typedef struct {
   int running;
   struct context *cntx;
@@ -95,6 +102,11 @@ int do_client(void *_cntx) {
 
   // TODO: take rate limit option from config or args, currently it is off
   int rate_limit = cntx->rate_limit;
+  // struct token_bucket tb;
+  // tb.tokens = 0;
+  // tb.rate = cntx->rate; // Define PACKET_RATE_LIMIT as your desired rate limit
+  // tb.last_fill = rte_get_timer_cycles();
+      
   uint64_t throughput[count_dst_ip * count_flow];
   uint64_t tp_limit = cntx->rate;
   uint64_t tp_start_ts = 0;
@@ -239,11 +251,28 @@ int do_client(void *_cntx) {
       flow = (selected_dst * count_flow) + (dst_port - base_port_number);
       // ===================================================================
 
+      // implement a proper rate limit based on packet per second
+
+      // In your packet sending loop
+      // uint64_t now = rte_get_timer_cycles();
+      // uint64_t elapsed = now - tb.last_fill;
+
+      // Refill the token bucket
+      // tb.tokens += elapsed * tb.rate / rte_get_timer_hz();
+      // tb.last_fill = now;
+
+
+      // If there are not enough tokens, drop or queue the packet
+      // if (tb.tokens < 64) { // Define PACKET_SIZE as the size of your packets
+        // continue;
+      // }
+
+
       // rate limit
       uint64_t ts = end_time;
       delta_time = ts - tp_start_ts;
       if (delta_time > rte_get_timer_hz()) {
-        // printf("tp: %ld\n", throughput);
+        printf("tp: %ln\n", throughput);
         for (uint32_t i = 0; i < count_dst_ip * count_flow; i++)
           throughput[i] = 0;
         // throughput = 0;
@@ -343,6 +372,8 @@ int do_client(void *_cntx) {
       for (i = nb_tx; i < burst; i++)
         rte_pktmbuf_free(bufs[i]);
 
+      // tb.tokens -= 64 * nb_tx;
+      
       throughput[cur_flow] += nb_tx;
 
       /* delay between sending each batch */
