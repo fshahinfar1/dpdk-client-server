@@ -66,6 +66,9 @@ int do_latency_client(void *_cntx)
 	struct rte_udp_hdr *udp_hdr;
 	uint64_t timestamp, resp_recv_time;
 
+	uint64_t start_since_sent = 0;
+	uint8_t pkt_lost = 0;
+
 	const uint16_t ip_total_len = rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) +
 						sizeof(struct rte_udp_hdr) + payload_length);
 	const uint16_t udp_total_len = rte_cpu_to_be_16(sizeof(struct rte_udp_hdr) + payload_length);
@@ -156,21 +159,21 @@ int do_latency_client(void *_cntx)
 recv:
 		// wait for response
 		nb_rx = 0;
-		uint64_t start_since_sent = rte_get_timer_cycles();
-		uint8_t lost = 0;
+		start_since_sent = rte_get_timer_cycles();
+
 		while(running) {
 			nb_rx = rte_eth_rx_burst(dpdk_port, qid, bufs, BURST_SIZE);
 
 			if (rte_get_timer_cycles() - start_since_sent > rte_get_timer_hz()) {
-				lost = 1;
+				pkt_lost = 1;
 				break;
 			}
 			if (nb_rx != 0)
 				break;
 		}
 
-		if (lost) {
-			lost = 0;
+		if (pkt_lost) {
+			pkt_lost = 0;
 			continue;
 		}
 
