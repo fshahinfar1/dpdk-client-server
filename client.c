@@ -356,7 +356,7 @@ int do_client(void *_cntx) {
           buf->l2_len = RTE_ETHER_HDR_LEN;
         }
         buf->l3_len = sizeof(struct rte_ipv4_hdr);
-        buf->ol_flags = RTE_MBUF_F_TX_IP_CKSUM | RTE_MBUF_F_TX_IPV4;
+        buf->ol_flags = RTE_MBUF_F_TX_IP_CKSUM | RTE_MBUF_F_TX_IPV4 | RTE_MBUF_F_TX_UDP_CKSUM;
       }
 
       /* send packets */

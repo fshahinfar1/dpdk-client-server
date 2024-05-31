@@ -45,7 +45,7 @@ static inline int dpdk_port_init(uint8_t port, struct rte_mempool *mbuf_pool,
                   },
           },
       .txmode = {
-          .offloads = 0x0,
+          .offloads = RTE_ETH_TX_OFFLOAD_IPV4_CKSUM | RTE_ETH_TX_OFFLOAD_UDP_CKSUM,
       }};
 
   int retval;
