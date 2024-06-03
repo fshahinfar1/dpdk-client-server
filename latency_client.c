@@ -201,7 +201,7 @@ recv:
 			udp_hdr = (struct rte_udp_hdr *)(ipv4_hdr + 1);
 			// get timestamp
 			timestamp = (*(uint64_t *)(udp_hdr + 1));
-			uint64_t latency = (resp_recv_time - timestamp) * 1000 * 1000 / rte_get_timer_hz(); // (us)
+			uint64_t latency = (resp_recv_time - timestamp) * 1000 * 1000 * 1000 / rte_get_timer_hz(); // (us)
 			// free packet
 			rte_pktmbuf_free(buf);
 
