@@ -301,7 +301,7 @@ static void parse_args(int argc, char *argv[])
         config.client.rate = atol(optarg);
         break;
       case BATCH_SIZE:
-        if (config.mode != mode_latency_clinet) {
+        if (config.mode != mode_latency_clinet && config.mode != mode_client) {
           rte_exit(EXIT_FAILURE, "Expected to be in latency-client mode\n");
         }
         ret = atoi(optarg);

@@ -1,7 +1,7 @@
 PKGCONF = pkg-config
 CC = gcc
 COptFlag = -O3 -g
-CWarningFlags = -Werror -Wall -Wextra -Wcast-align -Wno-return-type
+CWarningFlags = -Wall -Wextra -Wcast-align -Wno-return-type
 CFLAGS += \
 					-iquote ./include -D_GNU_SOURCE \
 					$(COptFlag) \
