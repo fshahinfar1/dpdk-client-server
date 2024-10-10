@@ -17,6 +17,7 @@
 
 #define BURST_SIZE (512)
 #define MAX_EXPECTED_LATENCY (10000) // (us)
+#define PAYLOAD "rtqeijsuiggqlxkuuvsoerdzvgbphgpyrkecwbsynngpruiubtgzcwtfltjmmnpwapcbyioboiqdbxebcrqyehebezbdwyrvdbhxfsbearajfmmscsinujutdqcftxchgzptyfypojbmnpjovoartkwupbfowfvxhfimrltocjoousmumwrqvjxukjtztcyahxfoldflyquyixahobffjawyzzaawghbjgfhpajqevfflpgoiiotkqjbajhhvyhmnydmkxbrgpbavcdaanjopmnsewoebkqgqcbvxsblfgulcogxeqkaxnytevmpwobljlxtjhygawmbhktewhbiytjlmjxxtfmwytlogigvpfsgihyxgkmskppxikspqmnrarxbzihzwqufsltxiioyvcsrhjiqlcfqcavtxsrbqnogyxwerqlpiwextpuxvmflwbazjynzeiprcttniqtmdusjxwqfdzfocowaywwnmedqjfizajdqbetslgjqzsvadscxbdwrywffiwlgybupukobjpjlspaofjkmhszxzskirdieshmpfqsggjnhyiiadaumiisuontoomswlyhiyuwaupjwfjdeulymoqvmrwlncncqdaobnfmbiknxwadgbrpsfixqhnbbgnacuoivmlyxzflqnoobpqffnmkpxkzcyvoqnjvibphoxueqkjqhvgjurnxchlbncxvvbeettppluoxtzewefcaktcupcqueeymcyietauqtgycceyhfqpawsnydcuehnjfpkpnsvmpieauhoawchmpiymzirhvfxcnrtdsgmxoblqycfzfsgzvtdwdhcqtakezphfntfsxagkrtwofqsaipibbzqydlcvlungidzgqmkkreznoutrclipksaaefpokubbycpkpfddceydjxjmdpryujwqqpeohbmyhwrgeqtsirfykynkelarbjdfycjzjfuzcitiaadbfvwlwteefdsqvzarxhrtbsjeppkpszjrdfvkufynwvihygfykpvitpaqnxdedkytwlkcbttogfaqdsveqrtymflcxhvbumcifjklzpcqhfbpbwhyoaekjpcisswegubzcyjdwzyqxsshkpdsynfofowakfmasnudmzazgdxvvtajatwxskuitxjoewuvbhhhjdhqozoqfvquyioizhlqwqyaidvokcfbcsgnhfmthsmktbntvoleaeznatmmuawslyinilsvefdizgnbnayaxhzxxphuyzyfycmrsmidqlglknsxchkqstcsqaofvxgscfqsqlfvcwvbnhrxdclzxwettbkpsfyaafowvhlgmglesaehsionovcshwkxfxtaczcxpgzevwrbclqtkfhfbuztqhcylyufuhbcjodlxyssvvikfalxdxadvllbhyxelqsadeuxpjnochcxdlgxgjzderdhnwahmuzbqtwpnsuwhhxfwcbuahkgctljjqvqct"
 
 // function declarations
 void *_run_receiver_thread(void *_arg);
@@ -61,6 +62,7 @@ int do_client(void *_cntx) {
   uint8_t use_vlan = cntx->use_vlan;
   uint8_t bidi = cntx->bidi;
   uint64_t delay_cycles = cntx->delay_cycles;
+  printf("delay cycles: %ld\n", delay_cycles);
   assert(count_dst_ip >= 1);
 
   uint64_t start_time, end_time;
@@ -106,7 +108,7 @@ int do_client(void *_cntx) {
   // tb.tokens = 0;
   // tb.rate = cntx->rate; // Define PACKET_RATE_LIMIT as your desired rate limit
   // tb.last_fill = rte_get_timer_cycles();
-      
+
   uint64_t throughput[count_dst_ip * count_flow];
   uint64_t tp_limit = cntx->rate;
   uint64_t tp_start_ts = 0;
@@ -160,7 +162,7 @@ int do_client(void *_cntx) {
   fprintf(fp, "Client src port %d\n", src_port);
 
   // get dst mac address
-  if (bidi) {
+  if (cntx->do_arp) {
     printf("sending ARP requests\n");
     for (int i = 0; i < count_dst_ip; i++) {
       struct rte_ether_addr dst_mac;
@@ -347,7 +349,11 @@ int do_client(void *_cntx) {
         timestamp = rte_get_timer_cycles();
         *(uint64_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = timestamp;
 
-        memset(buf_ptr + sizeof(struct rte_udp_hdr) + sizeof(timestamp), 0xAB,
+        /* request a fib number */
+        /* *(uint64_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 0; */
+        /* *(uint32_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 80; */
+
+        memcpy(buf_ptr + sizeof(struct rte_udp_hdr) + sizeof(timestamp), PAYLOAD,
                payload_length - sizeof(timestamp));
 
         if (use_vlan) {
@@ -373,7 +379,7 @@ int do_client(void *_cntx) {
         rte_pktmbuf_free(bufs[i]);
 
       // tb.tokens -= 64 * nb_tx;
-      
+
       throughput[cur_flow] += nb_tx;
 
       /* delay between sending each batch */

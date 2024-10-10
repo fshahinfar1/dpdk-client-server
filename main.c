@@ -199,6 +199,7 @@ int main(int argc, char *argv[]) {
     cntxs[i].src_ip = config.source_ip + i;
     cntxs[i].use_vlan = config.use_vlan;
     cntxs[i].bidi = config.bidi;
+    cntxs[i].do_arp = config.do_arp;
 
     /* how many queue the contex is responsible for */
     cntxs[i].count_queues = queue_per_core;

@@ -42,6 +42,7 @@ struct server_config {
 struct app_config {
   int bidi;
   int use_vlan;
+  int do_arp;
   uint32_t source_ip;
   uint16_t num_queues;
   int mode;
@@ -157,7 +158,7 @@ static void parse_args(int argc, char *argv[])
   int i;
   memset(&config, 0, sizeof(config));
   enum opts {
-	  HELP = 500,
+    HELP = 500,
     NUM_QUEUE,
     CLIENT,
     SERVER,
@@ -173,30 +174,35 @@ static void parse_args(int argc, char *argv[])
     RATE,
     BATCH_SIZE,
     PAYLOAD_LENGTH,
+    UNIDIR,
+    NO_ARP,
   };
 
   struct option long_opts[] = {
-	  {"help",               no_argument,       NULL, HELP}, 
-	  {"client",             no_argument,       NULL, CLIENT}, 
-	  {"server",             no_argument,       NULL, SERVER}, 
-	  {"latency-client",     no_argument,       NULL, LATENCY_CLIENT}, 
-	  {"ip-local",           required_argument, NULL, IP_LOCAL},
-	  {"ip-dest",            required_argument, NULL, IP_DEST},
-	  {"port",               required_argument, NULL, PORT},
-	  {"port-dest",          required_argument, NULL, DEST_PORT},
-	  {"num-flow",           required_argument, NULL, NUM_FLOW},
-	  {"duration",           required_argument, NULL, DURATION},
-	  {"delay",              required_argument, NULL, DELAY},
-	  {"rate",               required_argument, NULL, RATE},
-	  {"batch",              required_argument, NULL, BATCH_SIZE},
-	  {"payload",            required_argument, NULL, PAYLOAD_LENGTH},
-	  /* End of option list ------------------- */
-	  {NULL, 0, NULL, 0},
+    {"help",               no_argument,       NULL, HELP},
+    {"client",             no_argument,       NULL, CLIENT},
+    {"server",             no_argument,       NULL, SERVER},
+    {"latency-client",     no_argument,       NULL, LATENCY_CLIENT},
+    {"ip-local",           required_argument, NULL, IP_LOCAL},
+    {"ip-dest",            required_argument, NULL, IP_DEST},
+    {"port",               required_argument, NULL, PORT},
+    {"port-dest",          required_argument, NULL, DEST_PORT},
+    {"num-flow",           required_argument, NULL, NUM_FLOW},
+    {"duration",           required_argument, NULL, DURATION},
+    {"delay",              required_argument, NULL, DELAY},
+    {"rate",               required_argument, NULL, RATE},
+    {"batch",              required_argument, NULL, BATCH_SIZE},
+    {"payload",            required_argument, NULL, PAYLOAD_LENGTH},
+    {"unidir",             no_argument,       NULL, UNIDIR},
+    {"no-arp",             no_argument,       NULL, NO_ARP},
+    /* End of option list ----------------------------------------------- */
+    {NULL, 0, NULL, 0},
   };
 
   // default values
   config.bidi = 1;
   config.use_vlan = 0;
+  config.do_arp = 1;
   config.payload_size = 64;
   config.client.client_port = 3000;
   config.server_port = 8080;
@@ -318,13 +324,19 @@ static void parse_args(int argc, char *argv[])
         }
         config.payload_size = ret;
         break;
+      case UNIDIR:
+        config.bidi = 0;
+        break;
+      case NO_ARP:
+        config.do_arp = 0;
+        break;
       case HELP:
         usage();
         rte_exit(EXIT_SUCCESS, "!");
         break;
       default:
         usage();
-        rte_exit(EXIT_FAILURE, "!"); 
+        rte_exit(EXIT_FAILURE, "!");
         break;
     }
   }

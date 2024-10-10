@@ -32,6 +32,7 @@ struct context {
 
   uint8_t use_vlan;
   uint8_t bidi;
+  uint8_t do_arp;
 
   FILE *fp;
 
