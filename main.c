@@ -257,7 +257,7 @@ int main(int argc, char *argv[]) {
       cntxs[i].delay_cycles = config.client.delay_cycles;
 
       /* use zipf for selecting dst ip */
-      cntxs[i].destination_distribution = DIST_ZIPF; // DIST_UNIFORM;
+      cntxs[i].destination_distribution = DIST_UNIFORM; // DIST_ZIPF;
       cntxs[i].queue_selection_distribution = DIST_UNIFORM;
 
       cntxs[i].managed_queues = NULL;

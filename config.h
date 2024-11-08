@@ -210,6 +210,7 @@ static void parse_args(int argc, char *argv[])
   config.client.server_ips = malloc(MAX_SERVER_IP_DEST * sizeof(uint32_t));
   config.num_queues = 1;
   config.client.batch = 0;
+  config.client.count_flow = 1;
 
   // let dpdk parse its own arguments
   uint32_t args_parsed = dpdk_init(argc, argv);

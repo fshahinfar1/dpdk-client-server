@@ -156,8 +156,8 @@ int do_client(void *_cntx) {
   }
 
   // Zipf initialization
-  dst_zipf = new_zipfgen(count_dst_ip, 2); // values in range [1, count_dst_ip]
-  queue_zipf = new_zipfgen(count_queues, 2); // values in range [1, 2]
+  dst_zipf = new_zipfgen(count_dst_ip, /* skewness: */ 2); // values in range [1, count_dst_ip]
+  queue_zipf = new_zipfgen(count_queues, /* skewness: */ 2); // values in range [1, count_queues]
 
   fprintf(fp, "Client src port %d\n", src_port);
 
@@ -228,10 +228,11 @@ int do_client(void *_cntx) {
     if (can_send) {
       // select destination ip, port and ... =================================
       dst_ip = dst_ips[selected_dst];
-      if (cntx->queue_selection_distribution == DIST_ZIPF)
+      if (cntx->queue_selection_distribution == DIST_ZIPF) {
         selected_q = queue_zipf->gen(queue_zipf) - 1;
-      else
+      } else {
         selected_q = flow_q[flow];
+      }
 
       server_eth = _server_eth[selected_dst];
       tci = get_tci(prio[selected_dst], dei, vlan_id);
@@ -274,7 +275,8 @@ int do_client(void *_cntx) {
       uint64_t ts = end_time;
       delta_time = ts - tp_start_ts;
       if (delta_time > rte_get_timer_hz()) {
-        printf("tp: %ln\n", throughput);
+        printf("tp: %ld\n", throughput[0]);
+        throughput[0] = 0;
         for (uint32_t i = 0; i < count_dst_ip * count_flow; i++)
           throughput[i] = 0;
         // throughput = 0;
@@ -328,7 +330,12 @@ int do_client(void *_cntx) {
         ipv4_hdr->time_to_live = 64;
         ipv4_hdr->next_proto_id = IPPROTO_UDP;
         ipv4_hdr->hdr_checksum = 0;
+
         ipv4_hdr->src_addr = rte_cpu_to_be_32(src_ip);
+        /* static unsigned short y = 0; */
+        /* unsigned int _ip = src_ip + y; */
+        /* ipv4_hdr->src_addr = rte_cpu_to_be_32(_ip); */
+
         ipv4_hdr->dst_addr = rte_cpu_to_be_32(dst_ip);
 
         // upd header
@@ -336,7 +343,13 @@ int do_client(void *_cntx) {
                                               payload_length);
         udp_hdr = (struct rte_udp_hdr *)buf_ptr;
 
+        /* static unsigned short f = 0; */
+        /* unsigned short port  = 1000 + f; */
+        /* f = (f+1) % 15000; */
+        /* if (f == 0) y = (y + 1) % 15000; */
+        /* udp_hdr->src_port = rte_cpu_to_be_16(port); */
         udp_hdr->src_port = rte_cpu_to_be_16(src_port);
+
         udp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
         udp_hdr->dgram_len = rte_cpu_to_be_16(sizeof(struct rte_udp_hdr) + payload_length);
         udp_hdr->dgram_cksum = 0;
