@@ -15,7 +15,7 @@
 #include "zipf.h"
 #include "exponential.h"
 
-#define BURST_SIZE (512)
+#define BURST_SIZE (32)
 #define MAX_EXPECTED_LATENCY (10000) // (us)
 #define PAYLOAD "rtqeijsuiggqlxkuuvsoerdzvgbphgpyrkecwbsynngpruiubtgzcwtfltjmmnpwapcbyioboiqdbxebcrqyehebezbdwyrvdbhxfsbearajfmmscsinujutdqcftxchgzptyfypojbmnpjovoartkwupbfowfvxhfimrltocjoousmumwrqvjxukjtztcyahxfoldflyquyixahobffjawyzzaawghbjgfhpajqevfflpgoiiotkqjbajhhvyhmnydmkxbrgpbavcdaanjopmnsewoebkqgqcbvxsblfgulcogxeqkaxnytevmpwobljlxtjhygawmbhktewhbiytjlmjxxtfmwytlogigvpfsgihyxgkmskppxikspqmnrarxbzihzwqufsltxiioyvcsrhjiqlcfqcavtxsrbqnogyxwerqlpiwextpuxvmflwbazjynzeiprcttniqtmdusjxwqfdzfocowaywwnmedqjfizajdqbetslgjqzsvadscxbdwrywffiwlgybupukobjpjlspaofjkmhszxzskirdieshmpfqsggjnhyiiadaumiisuontoomswlyhiyuwaupjwfjdeulymoqvmrwlncncqdaobnfmbiknxwadgbrpsfixqhnbbgnacuoivmlyxzflqnoobpqffnmkpxkzcyvoqnjvibphoxueqkjqhvgjurnxchlbncxvvbeettppluoxtzewefcaktcupcqueeymcyietauqtgycceyhfqpawsnydcuehnjfpkpnsvmpieauhoawchmpiymzirhvfxcnrtdsgmxoblqycfzfsgzvtdwdhcqtakezphfntfsxagkrtwofqsaipibbzqydlcvlungidzgqmkkreznoutrclipksaaefpokubbycpkpfddceydjxjmdpryujwqqpeohbmyhwrgeqtsirfykynkelarbjdfycjzjfuzcitiaadbfvwlwteefdsqvzarxhrtbsjeppkpszjrdfvkufynwvihygfykpvitpaqnxdedkytwlkcbttogfaqdsveqrtymflcxhvbumcifjklzpcqhfbpbwhyoaekjpcisswegubzcyjdwzyqxsshkpdsynfofowakfmasnudmzazgdxvvtajatwxskuitxjoewuvbhhhjdhqozoqfvquyioizhlqwqyaidvokcfbcsgnhfmthsmktbntvoleaeznatmmuawslyinilsvefdizgnbnayaxhzxxphuyzyfycmrsmidqlglknsxchkqstcsqaofvxgscfqsqlfvcwvbnhrxdclzxwettbkpsfyaafowvhlgmglesaehsionovcshwkxfxtaczcxpgzevwrbclqtkfhfbuztqhcylyufuhbcjodlxyssvvikfalxdxadvllbhyxelqsadeuxpjnochcxdlgxgjzderdhnwahmuzbqtwpnsuwhhxfwcbuahkgctljjqvqct"
 
@@ -47,7 +47,7 @@ int do_client(void *_cntx) {
   int dpdk_port = cntx->dpdk_port_id;
 
   uint16_t qid = cntx->default_qid;
-  uint16_t count_queues = cntx->count_queues;
+  const uint16_t count_queues = cntx->count_queues;
   struct rte_mempool *tx_mem_pool = cntx->tx_mem_pool;
   struct rte_ether_addr my_eth = cntx->my_eth;
   uint32_t src_ip = cntx->src_ip;
@@ -131,6 +131,7 @@ int do_client(void *_cntx) {
 
   struct zipfgen *dst_zipf;
   struct zipfgen *queue_zipf;
+  struct zipfgen *src_zipf;
 
   pthread_t recv_thread;
 
@@ -158,6 +159,10 @@ int do_client(void *_cntx) {
   // Zipf initialization
   dst_zipf = new_zipfgen(count_dst_ip, /* skewness: */ 2); // values in range [1, count_dst_ip]
   queue_zipf = new_zipfgen(count_queues, /* skewness: */ 2); // values in range [1, count_queues]
+  const uint32_t count_src_addrs = 7000000;
+  /* the number of different ports to use in making different src addresses */
+  const uint32_t src_id_count_ports = 1000;
+  src_zipf = new_zipfgen(count_src_addrs, 0); // zero is uniform
 
   fprintf(fp, "Client src port %d\n", src_port);
 
@@ -331,7 +336,10 @@ int do_client(void *_cntx) {
         ipv4_hdr->next_proto_id = IPPROTO_UDP;
         ipv4_hdr->hdr_checksum = 0;
 
-        ipv4_hdr->src_addr = rte_cpu_to_be_32(src_ip);
+        const uint32_t src_idx = src_zipf->gen(src_zipf) - 1;
+        const uint32_t ip_offset = src_idx / src_id_count_ports;
+        const uint32_t port_offset = src_idx % src_id_count_ports;
+        ipv4_hdr->src_addr = rte_cpu_to_be_32(src_ip + ip_offset);
         /* static unsigned short y = 0; */
         /* unsigned int _ip = src_ip + y; */
         /* ipv4_hdr->src_addr = rte_cpu_to_be_32(_ip); */
@@ -348,7 +356,7 @@ int do_client(void *_cntx) {
         /* f = (f+1) % 15000; */
         /* if (f == 0) y = (y + 1) % 15000; */
         /* udp_hdr->src_port = rte_cpu_to_be_16(port); */
-        udp_hdr->src_port = rte_cpu_to_be_16(src_port);
+        udp_hdr->src_port = rte_cpu_to_be_16(src_port + port_offset);
 
         udp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
         udp_hdr->dgram_len = rte_cpu_to_be_16(sizeof(struct rte_udp_hdr) + payload_length);
@@ -462,6 +470,7 @@ int do_client(void *_cntx) {
   free(hist);
   free_zipfgen(dst_zipf);
   free_zipfgen(queue_zipf);
+  free_zipfgen(src_zipf);
   cntx->running = 0;
   return 0;
 }

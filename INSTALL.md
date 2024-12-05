@@ -44,3 +44,17 @@ echo export PKG_CONFIG_PATH=$DPDK_INSTALL_DIR/lib/x86_64-linux-gnu/pkgconfig | t
 ```
 GRUB_CMDLINE_LINUX_DEFAULT="default_hugepagesz=1G hugepagesz=1G hugepages=16"
 ```
+
+# NOTES
+
+On Intel NICs you need to attach the driver. Use dpdk devbind scripts provided
+with the DPDK. If you receive the following error, it might be due to IOMMU
+configurations. Test the command below.
+
+```
+Error: bind failed for 0000:18:00.1 - Cannot bind to driver vfio-pci: [Errno 22] Invalid argument
+```
+
+```
+ echo 1 | sudo tee  /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+```
