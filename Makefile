@@ -9,7 +9,13 @@ CFLAGS += \
 					$(shell $(PKGCONF) --cflags libdpdk)
 
 
-LDFLAGS += $(shell $(PKGCONF) --libs libdpdk) -lmlx5
+# Check if we need MLX5 driver or not
+HAS_MLX = $(shell lspci -v | grep mlx5)
+ifneq ($(HAS_MLX),)
+LDFLAGS += -lmlx5
+endif
+
+LDFLAGS += $(shell $(PKGCONF) --libs libdpdk)
 
 # $(info CFLAGS:)
 # $(info  $(CFLAGS))
