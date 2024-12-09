@@ -16,7 +16,8 @@
  * to be calculated again
  * */
 struct zipfgen {
-    double *c_probs; // Comulative probability for each rank
+    /* double *c_probs; // Comulative probability for each rank */
+    int *c_probs; // Comulative probability for each rank
     double h;  // Harmonic : (1 / sum (pow(i, s)))
     double s;  // also called alpha
     int n;     // number of ranks

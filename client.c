@@ -1,3 +1,4 @@
+/* vim: set et ts=2 sw=2: */
 #include <assert.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -374,8 +375,8 @@ int do_client(void *_cntx) {
         /* *(uint64_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 0; */
         /* *(uint32_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 80; */
 
-        memcpy(buf_ptr + sizeof(struct rte_udp_hdr) + sizeof(timestamp), PAYLOAD,
-               payload_length - sizeof(timestamp));
+        /* memcpy(buf_ptr + sizeof(struct rte_udp_hdr) + sizeof(timestamp), PAYLOAD, */
+        /*        payload_length - sizeof(timestamp)); */
 
         if (use_vlan) {
           buf->l2_len = RTE_ETHER_HDR_LEN + sizeof(struct rte_vlan_hdr);
@@ -395,9 +396,12 @@ int do_client(void *_cntx) {
         failed_to_push[k] += burst - nb_tx;
       }
 
-      // free packets failed to send
-      for (i = nb_tx; i < burst; i++)
-        rte_pktmbuf_free(bufs[i]);
+      if (nb_tx < burst) {
+        /* fprintf(stderr, "not all buffers were sent (%d)\n", burst - nb_tx); */
+        // free packets failed to send
+        for (i = nb_tx; i < burst; i++)
+          rte_pktmbuf_free(bufs[i]);
+      }
 
       // tb.tokens -= 64 * nb_tx;
 

@@ -5,3 +5,6 @@
 build/*
 rdma-core/*
 tags
+zipf_test
+perf.data
+perf.data.old
