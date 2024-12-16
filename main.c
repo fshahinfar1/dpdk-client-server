@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include <signal.h>
 
 #include "exp.h"
 #include "flow_rules.h"
@@ -128,6 +129,17 @@ static int create_pools(struct rte_mempool **rx_mbuf_pool,
     rte_exit(EXIT_FAILURE, "Error can not create tx mbuf pool\n");
 }
 
+static volatile int signal_received = 0;
+static struct context *context_ptr;
+void handle_main_int(__attribute__((unused)) int s) {
+	signal_received = 1;
+  	int count_core = rte_lcore_count();
+	for (int i = 0; i < count_core; i++) {
+		struct context *c = &context_ptr[i];
+		c->running = 0;
+	}
+}
+
 /*
  * Main function for running a server or client applications the client is a
  * udp flow generator and the server is a echo server. Client calculates the
@@ -143,6 +155,7 @@ int main(int argc, char *argv[]) {
 
   // contex pointers pass to functions
   struct context cntxs[20] = {};
+  context_ptr = cntxs;
   char *output_buffers[20] = {};
 
   // set a function pointer with a context parameter
@@ -155,9 +168,9 @@ int main(int argc, char *argv[]) {
   int cntxIndex;
 
   count_core = rte_lcore_count();
-  if (config.mode == mode_client && count_core > 1) {
-    rte_exit(EXIT_FAILURE, "client does not support multi core expreiments! things have broken.\n");
-  }
+  /* if (config.mode == mode_client && count_core > 1) { */
+  /*   rte_exit(EXIT_FAILURE, "client does not support multi core expreiments! things have broken.\n"); */
+  /* } */
   printf("Count core: %d\n", count_core);
 
   if (count_core > config.num_queues) {
@@ -287,11 +300,13 @@ int main(int argc, char *argv[]) {
   } else {
     process_function = (config.mode == mode_latency_clinet) ? do_latency_client
     : do_client;
+
+    signal(SIGINT, handle_main_int);
+    signal(SIGHUP, handle_main_int);
     
     RTE_LCORE_FOREACH_WORKER(lcore_id) {
       rte_eal_remote_launch(process_function, (void *)&cntxs[cntxIndex++], lcore_id);
     }
-    // do_latency_client(&cntxs[0]);
     process_function(&cntxs[0]);
     rte_eal_mp_wait_lcore();
 

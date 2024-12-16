@@ -146,7 +146,7 @@ int do_client(void *_cntx) {
   }
   burst = burst_sizes[0];
 
-  /* fprintf(fp, "sending on queues: [%d, %d]\n", qid, qid + count_queues - 1); */
+  fprintf(fp, "sending on queues: [%d, %d]\n", qid, qid + count_queues - 1);
   for (i = 0; i < count_dst_ip * count_flow; i++) {
     flow_q[i] = qid + (i % count_queues);
     throughput[i] = 0;
@@ -163,6 +163,8 @@ int do_client(void *_cntx) {
   const uint32_t count_src_addrs = 7000000;
   /* the number of different ports to use in making different src addresses */
   const uint32_t src_id_count_ports = 1000;
+  /* const uint32_t count_src_addrs = 1; */
+  /* const uint32_t src_id_count_ports = 1; */
   src_zipf = new_zipfgen(count_src_addrs, 0); // zero is uniform
 
   fprintf(fp, "Client src port %d\n", src_port);
@@ -214,7 +216,7 @@ int do_client(void *_cntx) {
   }
 
   // main tx worker loop
-  for (;;) {
+  while (cntx->running) {
     end_time = rte_get_timer_cycles();
 
     // TODO: this is just for testing the switch system

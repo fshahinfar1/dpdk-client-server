@@ -38,6 +38,16 @@ void free_zipfgen(struct zipfgen *ptr)
 	free(ptr);
 }
 
+
+int myrand(void) {
+	const unsigned long a = 1664525;  // Multiplier
+	const unsigned long c = 1013904223; // Increment
+	const unsigned long m = 4294967296; // 2^32 modulus, typically used for 32-bit integers
+	static unsigned long seed = 1;       // Initial seed value
+	seed = (a * seed + c) % m;
+	return seed % RAND_MAX;
+}
+
 /*
  * returns a value in range [1, n]
  * if failed (it should not) it returns -1
@@ -53,7 +63,8 @@ int number_from_zipf_distribution(struct zipfgen *ptr)
 	__builtin_prefetch(&ptr->c_probs[mid]);
 	// get a uniform random number
 	/* rnd = ((double)random() / (double)RAND_MAX); */
-	rnd = rand();
+	/* rnd = rand(); */
+	rnd = myrand();
 
 	while (low <= high) {
 		mid = (low + high) / 2;

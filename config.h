@@ -195,6 +195,7 @@ static void parse_args(int argc, char *argv[])
     {"payload",            required_argument, NULL, PAYLOAD_LENGTH},
     {"unidir",             no_argument,       NULL, UNIDIR},
     {"no-arp",             no_argument,       NULL, NO_ARP},
+    {"num-queue",          required_argument, NULL, NUM_QUEUE},
     /* End of option list ----------------------------------------------- */
     {NULL, 0, NULL, 0},
   };

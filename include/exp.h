@@ -48,7 +48,7 @@ struct context {
   uint16_t dst_port;
   int payload_length;
 
-  int running; // this is set to zero when client is done.
+  volatile int running; // this is set to zero when client is done.
 
   uint32_t count_flow; // how many flow to generate (each core)
   uint32_t base_port_number; // generate flows will have port numbers starting x  up to the x + count_flow
