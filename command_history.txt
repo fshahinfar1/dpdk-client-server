@@ -1,0 +1,1 @@
+ sudo ./build/app -a 18:00.1 -l 0,8 -- --client --num-queue 2 --ip-local 192.168.1.2 --ip-dest 192.168.1.1 --ip-dest 192.168.1.1 --num-flow 2 --duration 50 --unidir --payload 16 --rate 6000000
