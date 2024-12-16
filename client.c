@@ -160,11 +160,12 @@ int do_client(void *_cntx) {
   // Zipf initialization
   dst_zipf = new_zipfgen(count_dst_ip, /* skewness: */ 2); // values in range [1, count_dst_ip]
   queue_zipf = new_zipfgen(count_queues, /* skewness: */ 2); // values in range [1, count_queues]
-  const uint32_t count_src_addrs = 7000000;
-  /* the number of different ports to use in making different src addresses */
-  const uint32_t src_id_count_ports = 1000;
-  /* const uint32_t count_src_addrs = 1; */
-  /* const uint32_t src_id_count_ports = 1; */
+  /* const uint32_t count_src_addrs = 7000000; */
+  /* /1* the number of different ports to use in making different src addresses *1/ */
+  /* const uint32_t src_id_count_ports = 1000; */
+
+  const uint32_t count_src_addrs = 1;
+  const uint32_t src_id_count_ports = 1;
   src_zipf = new_zipfgen(count_src_addrs, 0); // zero is uniform
 
   fprintf(fp, "Client src port %d\n", src_port);
