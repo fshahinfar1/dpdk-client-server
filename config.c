@@ -50,6 +50,7 @@ static void print_usage_latency_client(void)
       "    --batch (packets) [default: 1]\n"
       "    --payload (UDP payload size) [default: 64 bytes]\n"
       "    --hdr-encap-sz Let the app know the server will move the offset of timestamp\n"
+      "    --delay (cycles) [default: 0 no dleay]\n"
       );
 }
 

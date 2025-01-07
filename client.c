@@ -433,13 +433,8 @@ int do_client(void *_cntx) {
       // Inter arrival Time
       if (delay_cycles > 0) {
         // rte_delay_us_block(delay_us);
-        uint64_t now = rte_get_tsc_cycles();
         double multiply = ((double)burst / (double)count_flow);
-        uint64_t end =
-            rte_get_tsc_cycles() + (uint64_t)(delay_cycles * multiply);
-        while (now < end) {
-          now = rte_get_tsc_cycles();
-        }
+        apply_delay_cycles(delay_cycles, multiply);
       }
 
     } // end if (can_send)

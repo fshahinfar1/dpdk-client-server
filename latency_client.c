@@ -73,6 +73,7 @@ int do_latency_client(void *_cntx)
 	uint64_t start_since_sent = 0;
 	uint8_t pkt_lost = 0;
 
+	uint64_t delay_cycles = config.client.delay_cycles;
 	uint16_t hdr_size_delta = config.client.hdr_encp_sz;
 	if (hdr_size_delta != 0) {
 		printf("Expect the server to change the location of timestamp by %d bytes\n", hdr_size_delta);
@@ -222,6 +223,9 @@ recv:
 
 		if (nb_tx > 0 && running)
 			goto recv;
+
+		if (delay_cycles > 0)
+			apply_delay_cycles(delay_cycles, 1);
 
 		// wait some time
 		/* wait(100000000LL); */

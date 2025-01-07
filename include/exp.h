@@ -76,4 +76,12 @@ int do_client(void *cntx);
 int do_latency_client(void *cntx);
 
 void wait(uint64_t ns);
+
+static inline __attribute__((always_inline))
+void apply_delay_cycles(uint64_t delay_cycles, uint16_t m)
+{
+  uint64_t now = rte_get_tsc_cycles();
+  uint64_t end = rte_get_tsc_cycles() + (uint64_t)(delay_cycles * m);
+  while (now < end) { now = rte_get_tsc_cycles(); }
+}
 #endif // __SLOW_RECEIVER_EXP_
