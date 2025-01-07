@@ -60,6 +60,10 @@ int do_latency_client(void *_cntx)
 	struct rte_mbuf *buf;
 	char *buf_ptr;
 	const uint32_t burst = cntx->batch;
+	if (burst > BURST_SIZE) {
+		fprintf(stderr, "maximum burst/batch size for latency client is %d (update the configuration if needed)\n", BURST_SIZE);
+		return 1;
+	}
 
 	struct rte_ether_hdr *eth_hdr;
 	struct rte_ipv4_hdr *ipv4_hdr;

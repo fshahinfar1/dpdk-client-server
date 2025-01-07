@@ -16,7 +16,7 @@
 #include "zipf.h"
 #include "exponential.h"
 
-#define BURST_SIZE (32)
+#define BURST_SIZE (512)
 #define MAX_EXPECTED_LATENCY (10000) // (us)
 #define PAYLOAD "rtqeijsuiggqlxkuuvsoerdzvgbphgpyrkecwbsynngpruiubtgzcwtfltjmmnpwapcbyioboiqdbxebcrqyehebezbdwyrvdbhxfsbearajfmmscsinujutdqcftxchgzptyfypojbmnpjovoartkwupbfowfvxhfimrltocjoousmumwrqvjxukjtztcyahxfoldflyquyixahobffjawyzzaawghbjgfhpajqevfflpgoiiotkqjbajhhvyhmnydmkxbrgpbavcdaanjopmnsewoebkqgqcbvxsblfgulcogxeqkaxnytevmpwobljlxtjhygawmbhktewhbiytjlmjxxtfmwytlogigvpfsgihyxgkmskppxikspqmnrarxbzihzwqufsltxiioyvcsrhjiqlcfqcavtxsrbqnogyxwerqlpiwextpuxvmflwbazjynzeiprcttniqtmdusjxwqfdzfocowaywwnmedqjfizajdqbetslgjqzsvadscxbdwrywffiwlgybupukobjpjlspaofjkmhszxzskirdieshmpfqsggjnhyiiadaumiisuontoomswlyhiyuwaupjwfjdeulymoqvmrwlncncqdaobnfmbiknxwadgbrpsfixqhnbbgnacuoivmlyxzflqnoobpqffnmkpxkzcyvoqnjvibphoxueqkjqhvgjurnxchlbncxvvbeettppluoxtzewefcaktcupcqueeymcyietauqtgycceyhfqpawsnydcuehnjfpkpnsvmpieauhoawchmpiymzirhvfxcnrtdsgmxoblqycfzfsgzvtdwdhcqtakezphfntfsxagkrtwofqsaipibbzqydlcvlungidzgqmkkreznoutrclipksaaefpokubbycpkpfddceydjxjmdpryujwqqpeohbmyhwrgeqtsirfykynkelarbjdfycjzjfuzcitiaadbfvwlwteefdsqvzarxhrtbsjeppkpszjrdfvkufynwvihygfykpvitpaqnxdedkytwlkcbttogfaqdsveqrtymflcxhvbumcifjklzpcqhfbpbwhyoaekjpcisswegubzcyjdwzyqxsshkpdsynfofowakfmasnudmzazgdxvvtajatwxskuitxjoewuvbhhhjdhqozoqfvquyioizhlqwqyaidvokcfbcsgnhfmthsmktbntvoleaeznatmmuawslyinilsvefdizgnbnayaxhzxxphuyzyfycmrsmidqlglknsxchkqstcsqaofvxgscfqsqlfvcwvbnhrxdclzxwettbkpsfyaafowvhlgmglesaehsionovcshwkxfxtaczcxpgzevwrbclqtkfhfbuztqhcylyufuhbcjodlxyssvvikfalxdxadvllbhyxelqsadeuxpjnochcxdlgxgjzderdhnwahmuzbqtwpnsuwhhxfwcbuahkgctljjqvqct"
 
@@ -142,9 +142,13 @@ int do_client(void *_cntx) {
   hist = malloc(count_dst_ip * sizeof(struct p_hist *));
   for (i = 0; i < count_dst_ip; i++) {
     hist[i] = new_p_hist_from_max_value(MAX_EXPECTED_LATENCY);
-    burst_sizes[i] = BURST_SIZE;
+    burst_sizes[i] = cntx->batch;
   }
   burst = burst_sizes[0];
+  if (burst > BURST_SIZE) {
+    fprintf(stderr, "Maximum burst size is limited to %d (update if needed)\n", BURST_SIZE);
+    rte_exit(EXIT_FAILURE, "something failed!");
+  }
 
   fprintf(fp, "sending on queues: [%d, %d]\n", qid, qid + count_queues - 1);
   for (i = 0; i < count_dst_ip * count_flow; i++) {
@@ -312,7 +316,7 @@ int do_client(void *_cntx) {
       }
 
       /* allocate some packets ! notice they should either be sent or freed */
-      if (rte_pktmbuf_alloc_bulk(tx_mem_pool, bufs, BURST_SIZE)) {
+      if (rte_pktmbuf_alloc_bulk(tx_mem_pool, bufs, burst)) {
         /* allocating failed */
         continue;
       }
