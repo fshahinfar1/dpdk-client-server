@@ -5,7 +5,7 @@ different destination and measures throughput and latency.
 
 ## Build
 
-Look at `INSTALL` file.
+Look at [INSTALL file](./docs/INSTALL.md).
 
 The `Makefile` tries to detect if the server has Mellanox NICs and adds
 `-lmlx5` flag. But you might want to double check that if things are not
