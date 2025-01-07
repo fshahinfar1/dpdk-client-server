@@ -38,6 +38,7 @@ APP = $(OUTPUT_DIR)/app
 
 # all source are stored in SRCS-y
 SRCS := main.c
+SRCS += config.c
 SRCS += server.c
 SRCS += client.c
 SRCS += latency_client.c

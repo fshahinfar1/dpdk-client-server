@@ -21,7 +21,6 @@
 
 
 static unsigned int dpdk_port = 0;
-struct app_config config;
 
 /*
  * Initialize an ethernet port

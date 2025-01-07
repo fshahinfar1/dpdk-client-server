@@ -9,9 +9,9 @@
 #include <rte_mbuf.h>
 #include <rte_udp.h>
 
+#include "config.h"
 #include "exp.h"
 #include "arp.h"
-
 
 #define BURST_SIZE (64)
 
@@ -72,6 +72,11 @@ int do_latency_client(void *_cntx)
 
 	uint64_t start_since_sent = 0;
 	uint8_t pkt_lost = 0;
+
+	uint16_t hdr_size_delta = config.client.hdr_encp_sz;
+	if (hdr_size_delta != 0) {
+		printf("Expect the server to change the location of timestamp by %d bytes\n", hdr_size_delta);
+	}
 
 	const uint16_t ip_total_len = rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) +
 						sizeof(struct rte_udp_hdr) + payload_length);
@@ -204,7 +209,9 @@ recv:
 			ipv4_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
 			udp_hdr = (struct rte_udp_hdr *)(ipv4_hdr + 1);
 			// get timestamp
-			timestamp = (*(uint64_t *)(udp_hdr + 1));
+			void *_tmp = udp_hdr + 1;
+			uint64_t *ts_ptr = _tmp + hdr_size_delta;
+			timestamp = *ts_ptr;
 			uint64_t latency = (resp_recv_time - timestamp) * 1000 * 1000 * 1000 / rte_get_timer_hz(); // (us)
 			// free packet
 			rte_pktmbuf_free(buf);

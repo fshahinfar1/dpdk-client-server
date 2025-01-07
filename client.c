@@ -147,7 +147,7 @@ int do_client(void *_cntx) {
   burst = burst_sizes[0];
   if (burst > BURST_SIZE) {
     fprintf(stderr, "Maximum burst size is limited to %d (update if needed)\n", BURST_SIZE);
-    rte_exit(EXIT_FAILURE, "something failed!");
+    rte_exit(EXIT_FAILURE, "something failed!\n");
   }
 
   fprintf(fp, "sending on queues: [%d, %d]\n", qid, qid + count_queues - 1);
