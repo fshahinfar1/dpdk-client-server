@@ -26,7 +26,7 @@ lunch a sender thread.
 sudo ./build/app  --lcores '0@(2,4)' -a 03:00.1 -- --client --ip-local 192.168.1.2 --ip-dest 192.168.1.1  --duration 50  --batch 32 --rate 1000000
 ```
 
-> client.c
+> Feel free to change things in `client.c` to match your expected scenario
 
 
 ## Measure Latency
