@@ -31,7 +31,6 @@ sudo ./build/app  --lcores '0@(2,4)' -a 03:00.1 -- --client --ip-local 192.168.1
 
 ## Measure Latency
 
-
 **machine 1:**
 
 ```bash
@@ -44,3 +43,5 @@ sudo ./build/app -l 2 -a 41:00.0 -- --server --ip-local 192.168.1.1
 sudo ./build/app -a 41:00.0 -l 2 -- --latency-client --ip-local 192.168.1.2 --ip-dest 192.168.1.1 --batch 1 &> /tmp/log
 bash latency_script.sh /tmp/log
 ```
+
+More details at [here](./docs/latency_client.md)
