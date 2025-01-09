@@ -168,16 +168,16 @@ int do_client(void *_cntx) {
   /* /1* the number of different ports to use in making different src addresses *1/ */
   /* const uint32_t src_id_count_ports = 1000; */
 
-  /* const uint32_t count_src_addrs = 1; */
-  /* const uint32_t src_id_count_ports = 1; */
+  const uint32_t count_src_addrs = 1;
+  const uint32_t src_id_count_ports = 1;
   /* const uint32_t count_src_addrs = 100; */
   /* const uint32_t src_id_count_ports = 10; */
   /* const uint32_t count_src_addrs = 10000; */
   /* const uint32_t src_id_count_ports = 100; */
   /* const uint32_t count_src_addrs = 100000; */
   /* const uint32_t src_id_count_ports = 1000; */
-  const uint32_t count_src_addrs = 1000000;
-  const uint32_t src_id_count_ports = 1000;
+  /* const uint32_t count_src_addrs = 1000000; */
+  /* const uint32_t src_id_count_ports = 1000; */
   /* const uint32_t count_src_addrs = 2500000; */
   /* const uint32_t src_id_count_ports = 1000; */
   /* const uint32_t count_src_addrs = 5000000; */
@@ -261,6 +261,7 @@ int do_client(void *_cntx) {
         selected_q = flow_q[flow];
       }
 
+      assert(selected_dst == 0);
       server_eth = _server_eth[selected_dst];
       tci = get_tci(prio[selected_dst], dei, vlan_id);
       dst_port = dst_port + 1;
@@ -330,6 +331,7 @@ int do_client(void *_cntx) {
 
         rte_ether_addr_copy(&my_eth, &eth_hdr->src_addr);
         rte_ether_addr_copy(&server_eth, &eth_hdr->dst_addr);
+        assert(memcmp(&eth_hdr->dst_addr, &_server_eth[0], 6) == 0);
         if (use_vlan) {
           eth_hdr->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_VLAN);
         } else {

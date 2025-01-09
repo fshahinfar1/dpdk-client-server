@@ -24,7 +24,7 @@ fg_load_gen_ctrl=128.110.218.118
 load_steps=( 10000 100000 1000000 2000000 )
 # load_steps=( 10000 )
 bg_time=50
-fg_time=10
+fg_time=30
 lat_tmp_file=/tmp/measurements.txt
 store_dir=$HOME/results/
 
@@ -56,7 +56,15 @@ clean_everything() {
 	ssh $USER@$fg_load_gen_ctrl "sudo pkill -SIGINT app"
 }
 
+do_warm_up() {
+	run_bg 10000
+}
+
 mkdir -p $store_dir
+do_warm_up
+sleep 30 # warm up time
+clean_everything
+
 for offered_load in ${load_steps[@]}; do
 	echo "at Load = $offered_load"
 	run_bg $offered_load &
@@ -70,4 +78,12 @@ for offered_load in ${load_steps[@]}; do
 	sleep 5
 	gather_lat_measurments $offered_load
 	sleep 5
+done
+
+# Report
+for offered_load in ${load_steps[@]}; do
+	echo "at Load = $offered_load"
+	file=$store_dir/load_at_$offered_load.txt
+	./latency_script.sh $file
+	echo '------------------'
 done
