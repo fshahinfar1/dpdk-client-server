@@ -168,16 +168,16 @@ int do_client(void *_cntx) {
   /* /1* the number of different ports to use in making different src addresses *1/ */
   /* const uint32_t src_id_count_ports = 1000; */
 
-  const uint32_t count_src_addrs = 1;
-  const uint32_t src_id_count_ports = 1;
+  /* const uint32_t count_src_addrs = 1; */
+  /* const uint32_t src_id_count_ports = 1; */
   /* const uint32_t count_src_addrs = 100; */
   /* const uint32_t src_id_count_ports = 10; */
   /* const uint32_t count_src_addrs = 10000; */
   /* const uint32_t src_id_count_ports = 100; */
   /* const uint32_t count_src_addrs = 100000; */
   /* const uint32_t src_id_count_ports = 1000; */
-  /* const uint32_t count_src_addrs = 1000000; */
-  /* const uint32_t src_id_count_ports = 1000; */
+  const uint32_t count_src_addrs = 1000000;
+  const uint32_t src_id_count_ports = 1000;
   /* const uint32_t count_src_addrs = 2500000; */
   /* const uint32_t src_id_count_ports = 1000; */
   /* const uint32_t count_src_addrs = 5000000; */

@@ -23,7 +23,7 @@ fg_load_gen_ctrl=128.110.218.118
 # Configure the load steps depending to your experiment (packet per second)
 load_steps=( 10000 100000 1000000 2000000 )
 # load_steps=( 10000 )
-bg_time=50
+bg_time=120
 fg_time=30
 lat_tmp_file=/tmp/measurements.txt
 store_dir=$HOME/results/
