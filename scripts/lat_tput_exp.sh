@@ -21,7 +21,8 @@ bg_load_gen_ctrl=128.110.218.116
 fg_load_gen_ctrl=128.110.218.118
 
 # Configure the load steps depending to your experiment (packet per second)
-load_steps=( 10000 100000 1000000 2000000 )
+# load_steps=( 10000 100000 1000000 1300000 1600000 1900000 2000000 )
+load_steps=( 10000 100000 1000000 1300000 1600000 1900000 2000000 2300000 2600000 )
 # load_steps=( 10000 )
 bg_time=120
 fg_time=30

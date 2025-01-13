@@ -42,6 +42,7 @@ SRCS += config.c
 SRCS += server.c
 SRCS += client.c
 SRCS += latency_client.c
+SRCS += memcached_client.c
 SRCS += utils/exp.c
 SRCS += utils/percentile.c
 SRCS += utils/flow_rules.c

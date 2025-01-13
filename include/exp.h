@@ -74,6 +74,7 @@ int check_eth_hdr(uint32_t my_ip, struct rte_ether_addr *host_mac,
 int do_server(void *cntx);
 int do_client(void *cntx);
 int do_latency_client(void *cntx);
+int do_memcd(void *cntx);
 
 void wait(uint64_t ns);
 

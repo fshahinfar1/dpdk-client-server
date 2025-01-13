@@ -222,9 +222,6 @@ int main(int argc, char *argv[]) {
     assert(fp != NULL);
     cntxs[i].fp = fp;
 
-    cntxs[i].rate_limit = config.client.rate_limit;
-    cntxs[i].rate = config.client.rate;
-
     if (config.mode == mode_server) {
       cntxs[i].dst_port = 0;
       cntxs[i].src_port = config.server_port;
@@ -239,8 +236,34 @@ int main(int argc, char *argv[]) {
       printf("Server delay: %d\n", config.server.server_delay);
 
       cntxs[i].dst_ips = NULL;
+    } else if (config.mode == mode_memcached_client) {
+      assert((config.memcd.count_server_ips % count_core) == 0);
+      int ips = config.memcd.count_server_ips / count_core;
+      cntxs[i].src_port = config.memcd.client_port + i;
+      cntxs[i].dst_ips = malloc(sizeof(int) * ips);
+      {
+        char ip_str[20];
+        for (int j = 0; j < ips; j++) {
+          cntxs[i].dst_ips[j] = config.memcd.server_ips[findex++];
+          ip_to_str(cntxs[i].dst_ips[j], ip_str, 20);
+          printf("ip: %s\n", ip_str);
+        }
+      }
+      cntxs[i].count_dst_ip = ips;
+      cntxs[i].dst_port = config.server_port;
+      cntxs[i].base_port_number = config.server_port;
+      cntxs[i].duration = config.memcd.duration;
+      cntxs[i].destination_distribution = DIST_UNIFORM; // DIST_ZIPF;
+      cntxs[i].queue_selection_distribution = DIST_UNIFORM;
+      cntxs[i].managed_queues = NULL;
+      cntxs[i].batch = config.memcd.batch;
+
+      cntxs[i].rate_limit = config.memcd.rate_limit;
+      cntxs[i].rate = config.memcd.rate;
     } else {
       // this is a client application
+      cntxs[i].rate_limit = config.client.rate_limit;
+      cntxs[i].rate = config.client.rate;
 
       // TODO: fractions are not considered for this division
       assert((config.client.count_server_ips % count_core) == 0);
@@ -297,9 +320,19 @@ int main(int argc, char *argv[]) {
       printf("------  end  ---------\n");
     }
   } else {
-    process_function = (config.mode == mode_latency_clinet) ? do_latency_client
-    : do_client;
-
+    switch(config.mode) {
+      case mode_client:
+        process_function = do_client;
+        break;
+      case mode_latency_clinet:
+        process_function = do_latency_client;
+        break;
+      case mode_memcached_client:
+        process_function = do_memcd;
+        break;
+      default:
+        rte_exit(EXIT_FAILURE, "unsupported application mode\n");
+    }
     signal(SIGINT, handle_main_int);
     signal(SIGHUP, handle_main_int);
     

@@ -6,7 +6,9 @@ static void print_usage_app(void)
   printf("Usage: ./app [DPDK EAL arguments] -- [App arguments]\n"
       "    --client\n"
       "    --latency-client\n"
-      "    --server\n");
+      "    --server\n"
+      "    --memcached\n"
+      );
 }
 
 static void print_usage_server(void)
@@ -54,6 +56,22 @@ static void print_usage_latency_client(void)
       );
 }
 
+static void print_usage_memcached_client(void)
+{
+  printf(
+      "Descrition: Generate memcached ascii request.\n"
+
+      "Usage: ./app [DPDK EAL arguments] -- --memcached [arguments]\n"
+      "    --ip-local\n"
+      "    --ip-dest\n"
+      "    --port client UDP port number [default: 3000]\n"
+      "    --port-dest server UDP port [default: 8080]\n"
+      "    --batch (packets) [default: 1]\n"
+      "    --records\n"
+      "    --keylen (bytes)\n"
+      );
+}
+
 static void usage(void)
 {
   switch (config.mode) {
@@ -68,6 +86,9 @@ static void usage(void)
       break;
      case mode_latency_clinet:
       print_usage_latency_client();
+      break;
+     case mode_memcached_client:
+      print_usage_memcached_client();
       break;
      default:
       rte_exit(EXIT_FAILURE, "Unexpected mode!\n");
@@ -98,6 +119,30 @@ static void check_client_mode(void)
   }
 }
 
+static void default_values_client_mode(void)
+{
+  config.client.count_server_ips = 0;
+  config.client.server_ips = malloc(MAX_SERVER_IP_DEST * sizeof(uint32_t));
+  config.client.batch = 0;
+  config.client.count_flow = 1;
+  config.client.hdr_encp_sz = 0;
+}
+
+static void default_values_server_mode(void)
+{
+}
+
+static void default_values_memcached_mode(void)
+{
+  config.memcd.count_server_ips = 0;
+  config.memcd.server_ips = malloc(MAX_SERVER_IP_DEST * sizeof(uint32_t));
+  config.memcd.rate_limit = 0;
+  config.memcd.rate = 0;
+  config.memcd.batch = 0;
+  config.memcd.keylen = 0;
+  config.memcd.records = 0;
+}
+
 void parse_args(int argc, char *argv[])
 {
   int ret;
@@ -123,6 +168,9 @@ void parse_args(int argc, char *argv[])
     UNIDIR,
     NO_ARP,
     HDR_ENCP_SZ,
+    RECORDS,
+    KEYLEN,
+    MEMCACHED,
   };
 
   struct option long_opts[] = {
@@ -144,6 +192,9 @@ void parse_args(int argc, char *argv[])
     {"no-arp",             no_argument,       NULL, NO_ARP},
     {"num-queue",          required_argument, NULL, NUM_QUEUE},
     {"hdr-encap-sz",       required_argument, NULL, HDR_ENCP_SZ},
+    {"records",            required_argument, NULL, RECORDS},
+    {"keylen",             required_argument, NULL, KEYLEN},
+    {"memcached",          no_argument,       NULL, MEMCACHED},
     /* End of option list ----------------------------------------------- */
     {NULL, 0, NULL, 0},
   };
@@ -155,12 +206,7 @@ void parse_args(int argc, char *argv[])
   config.payload_size = 64;
   config.client.client_port = 3000;
   config.server_port = 8080;
-  config.client.count_server_ips = 0;
-  config.client.server_ips = malloc(MAX_SERVER_IP_DEST * sizeof(uint32_t));
   config.num_queues = 1;
-  config.client.batch = 0;
-  config.client.count_flow = 1;
-  config.client.hdr_encp_sz = 0;
 
   // let dpdk parse its own arguments
   uint32_t args_parsed = dpdk_init(argc, argv);
@@ -182,14 +228,22 @@ void parse_args(int argc, char *argv[])
       case CLIENT:
         check_only_one_mode();
         config.mode = mode_client;
+        default_values_client_mode();
         break;
       case SERVER:
         check_only_one_mode();
         config.mode = mode_server;
+        default_values_server_mode();
         break;
       case LATENCY_CLIENT:
         check_only_one_mode();
         config.mode = mode_latency_clinet;
+        default_values_client_mode();
+        break;
+      case MEMCACHED:
+        check_only_one_mode();
+        config.mode = mode_memcached_client;
+        default_values_memcached_mode();
         break;
       case IP_LOCAL:
         /* ret = inet_pton(AF_INET, optarg, &config.source_ip); */
@@ -199,16 +253,29 @@ void parse_args(int argc, char *argv[])
         }
         break;
       case IP_DEST:
-        check_client_mode();
-        i = config.client.count_server_ips;
-        if (i >= MAX_SERVER_IP_DEST) {
-          rte_exit(EXIT_FAILURE, "Maximum number of destination servers have been reached\n");
-        }
-        config.client.count_server_ips++;
-        /* ret = inet_pton(AF_INET, optarg, &config.client.server_ips[i]); */
-        ret = str_to_ip(optarg, &config.client.server_ips[i]);
-        if (ret != 0) {
-          rte_exit(EXIT_FAILURE, "Failed to read destination ip address\n");
+        if (config.mode == mode_memcached_client) {
+          i = config.memcd.count_server_ips;
+          if (i >= MAX_SERVER_IP_DEST) {
+            rte_exit(EXIT_FAILURE, "Maximum number of destination servers have been reached\n");
+          }
+          config.memcd.count_server_ips++;
+          /* ret = inet_pton(AF_INET, optarg, &config.client.server_ips[i]); */
+          ret = str_to_ip(optarg, &config.memcd.server_ips[i]);
+          if (ret != 0) {
+            rte_exit(EXIT_FAILURE, "Failed to read destination ip address\n");
+          }
+        } else {
+          check_client_mode();
+          i = config.client.count_server_ips;
+          if (i >= MAX_SERVER_IP_DEST) {
+            rte_exit(EXIT_FAILURE, "Maximum number of destination servers have been reached\n");
+          }
+          config.client.count_server_ips++;
+          /* ret = inet_pton(AF_INET, optarg, &config.client.server_ips[i]); */
+          ret = str_to_ip(optarg, &config.client.server_ips[i]);
+          if (ret != 0) {
+            rte_exit(EXIT_FAILURE, "Failed to read destination ip address\n");
+          }
         }
         break;
 
@@ -223,6 +290,8 @@ void parse_args(int argc, char *argv[])
         }
         if (config.mode == mode_server) {
           config.server_port = ret;
+        } else if(config.mode == mode_memcached_client) {
+          config.memcd.client_port = ret;
         } else {
           config.client.client_port = ret;
         }
@@ -239,7 +308,12 @@ void parse_args(int argc, char *argv[])
         config.client.count_flow = atoi(optarg);
         break;
       case DURATION:
-        config.client.duration = atoi(optarg);
+        if (config.mode == mode_memcached_client) {
+          config.memcd.duration = atoi(optarg);
+        } else {
+          check_client_mode();
+          config.client.duration = atoi(optarg);
+        }
         break;
       case DELAY:
         if (config.mode == mode_undefined) {
@@ -249,23 +323,34 @@ void parse_args(int argc, char *argv[])
         ret = atol(optarg);
         if (config.mode == mode_server) {
           config.server.server_delay = ret;
+        } else if (config.mode == mode_memcached_client) {
+          rte_exit(EXIT_FAILURE, "Not implemented\n");
         } else {
           config.client.delay_cycles = ret;
         }
         break;
       case RATE:
-        config.client.rate_limit = 1;
-        config.client.rate = atol(optarg);
+        if (config.mode == mode_memcached_client) {
+          config.memcd.rate_limit = 1;
+          config.memcd.rate = atol(optarg);
+        } else {
+          check_client_mode();
+          config.client.rate_limit = 1;
+          config.client.rate = atol(optarg);
+        }
         break;
       case BATCH_SIZE:
-        if (config.mode != mode_latency_clinet && config.mode != mode_client) {
-          rte_exit(EXIT_FAILURE, "Expected to be in latency-client mode\n");
-        }
         ret = atoi(optarg);
         if (ret < 1) {
           rte_exit(EXIT_FAILURE, "Unexpected value for batch size\n");
         }
-        config.client.batch = ret;
+        if (config.mode == mode_latency_clinet || config.mode == mode_client) {
+          config.client.batch = ret;
+        } else if(config.mode == mode_memcached_client) {
+          config.memcd.batch = ret;
+        } else {
+          rte_exit(EXIT_FAILURE, "Expected to be in latency-client mode\n");
+        }
         break;
       case PAYLOAD_LENGTH:
         check_client_mode();
@@ -286,6 +371,19 @@ void parse_args(int argc, char *argv[])
           rte_exit(EXIT_FAILURE, "Expected to be in latency-client mode (hdr_encp_sze)\n");
         }
         config.client.hdr_encp_sz = atoi(optarg);
+        break;
+
+      case RECORDS:
+        if (config.mode != mode_memcached_client) {
+          rte_exit(EXIT_FAILURE, "Expected to be in memcached mode\n");
+        }
+        config.memcd.records = atoi(optarg);
+        break;
+      case KEYLEN:
+        if (config.mode != mode_memcached_client) {
+          rte_exit(EXIT_FAILURE, "Expected to be in memcached mode\n");
+        }
+        config.memcd.keylen = atoi(optarg);
         break;
       case HELP:
         usage();
@@ -318,6 +416,15 @@ void parse_args(int argc, char *argv[])
   if (config.client.count_server_ips == 0) {
     if (config.mode == mode_client || config.mode == mode_latency_clinet) {
       rte_exit(EXIT_FAILURE, "Expect at least one destination address\n");
+    }
+  }
+
+  if (config.mode == mode_memcached_client) {
+    if (config.memcd.keylen < 1) {
+      rte_exit(EXIT_FAILURE, "Expected to set the keylen to some value greater than 0\n");
+    }
+    if (config.memcd.records < 1) {
+      rte_exit(EXIT_FAILURE, "Expected to set the number of records to a value greater than 0\n");
     }
   }
 }

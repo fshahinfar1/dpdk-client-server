@@ -17,6 +17,7 @@ enum {
   mode_client,
   mode_server,
   mode_latency_clinet,
+  mode_memcached_client,
 };
 
 // Some types
@@ -35,6 +36,19 @@ struct client_config {
   int16_t hdr_encp_sz;
 };
 
+struct memcached_config {
+  uint16_t client_port;
+  uint32_t count_server_ips;
+  uint32_t *server_ips;
+  uint32_t duration;
+  uint8_t rate_limit;
+  uint64_t rate;
+  uint64_t delay_cycles;
+  uint16_t batch;
+  uint16_t keylen;
+  uint32_t records;
+};
+
 struct server_config {
   // delay for each burst in server (us)
   uint32_t server_delay;
@@ -51,6 +65,7 @@ struct app_config {
   uint16_t server_port;
   union {
     struct client_config client;
+    struct memcached_config memcd;
     struct server_config server;
   };
 };
