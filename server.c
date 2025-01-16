@@ -211,7 +211,7 @@ int do_server(void *_cntx) {
       /* in unidirectional mode the arp is not send so destination mac addr
        * is incorrect
        * */
-      if (bidi) {
+      if (cntx->do_arp) {
 
         valid_pkt = check_eth_hdr(my_ip, &my_eth, buf, tx_mem_pool, cdq);
 
@@ -281,7 +281,6 @@ int do_server(void *_cntx) {
       // }
 
       if (!bidi) {
-        printf("drop beacuse it is not bidi\n");
         rte_pktmbuf_free(rx_bufs[i]);
         continue;
       }
