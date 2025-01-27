@@ -62,6 +62,8 @@ int check_eth_hdr(uint32_t my_ip, struct rte_ether_addr *host_mac,
           rte_be_to_cpu_32(a_hdr->arp_data.arp_sip), tx_mbuf_pool, cdq);
       printf("answering arp \n");
     }
+    printf("it is arp! opcode: %d, T ip: %x\n", a_hdr->arp_opcode,
+      rte_cpu_to_be_32(a_hdr->arp_data.arp_tip));
     return 0;
   }
 

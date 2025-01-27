@@ -39,4 +39,7 @@ void free_zipfgen(struct zipfgen *ptr);
  * */
 int number_from_zipf_distribution(struct zipfgen *ptr);
 
+
+/* It's a Linear congruential generator (LCG) */
+int myrand(void);
 #endif

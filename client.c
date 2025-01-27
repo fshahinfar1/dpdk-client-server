@@ -88,7 +88,6 @@ int do_client(void *_cntx) {
   struct rte_ether_hdr *eth_hdr;
   struct rte_vlan_hdr *vlan_hdr;
   struct rte_ipv4_hdr *ipv4_hdr;
-  struct rte_udp_hdr *udp_hdr;
   uint16_t nb_tx = 0;
   uint16_t i;
   uint32_t dst_ip;
@@ -180,16 +179,16 @@ int do_client(void *_cntx) {
   /* /1* the number of different ports to use in making different src addresses *1/ */
   /* const uint32_t src_id_count_ports = 1000; */
 
-  /* const uint32_t count_src_addrs = 1; */
-  /* const uint32_t src_id_count_ports = 1; */
+  const uint32_t count_src_addrs = 1;
+  const uint32_t src_id_count_ports = 1;
   /* const uint32_t count_src_addrs = 100; */
   /* const uint32_t src_id_count_ports = 10; */
   /* const uint32_t count_src_addrs = 10000; */
   /* const uint32_t src_id_count_ports = 100; */
   /* const uint32_t count_src_addrs = 100000; */
   /* const uint32_t src_id_count_ports = 1000; */
-  const uint32_t count_src_addrs = 1000000;
-  const uint32_t src_id_count_ports = 1000;
+  /* const uint32_t count_src_addrs = 1000000; */
+  /* const uint32_t src_id_count_ports = 1000; */
   /* const uint32_t count_src_addrs = 2500000; */
   /* const uint32_t src_id_count_ports = 1000; */
   /* const uint32_t count_src_addrs = 5000000; */
@@ -375,6 +374,7 @@ int do_client(void *_cntx) {
         ipv4_hdr->dst_addr = rte_cpu_to_be_32(dst_ip);
 
 #ifndef SEND_TCP_WITH_KATRAN_SERVER_OPT
+        struct rte_udp_hdr *udp_hdr;
         ipv4_hdr->next_proto_id = IPPROTO_UDP;
         ipv4_hdr->total_length =
             rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) +
@@ -414,7 +414,7 @@ int do_client(void *_cntx) {
         } __attribute__((packed)) *opt  = (void *)buf_ptr;
         opt->kind = KATRAN_TCP_HDR_OPT_KIND_TPR;
         opt->len = KATRAN_TCP_HDR_OPT_LEN_TPR;
-        opt->srv_id = src_idx % KATRAN_MAX_QUIC_REALS;
+        opt->srv_id = myrand() % KATRAN_MAX_QUIC_REALS;
         if (opt->srv_id == 0) // server id zero is invalid
           opt->srv_id = 1;
         opt->pad = 0;
