@@ -396,7 +396,11 @@ int do_client(void *_cntx) {
             hdr_size + payload_length);
         buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_tcp_hdr));
         struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)buf_ptr;
-        tcp_hdr->src_port = rte_cpu_to_be_16(src_port + port_offset);
+        /* tcp_hdr->src_port = rte_cpu_to_be_16(src_port + port_offset); */
+        static uint16_t __c = 0;
+        __c = (__c+1) % 2;
+        tcp_hdr->src_port = rte_cpu_to_be_16(src_port + __c);
+
         tcp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
         tcp_hdr->sent_seq = 123; // TODO: does it matter in our experiment?
         tcp_hdr->recv_ack = 321; // TODO: does it matter in our experiment?
@@ -414,9 +418,16 @@ int do_client(void *_cntx) {
         } __attribute__((packed)) *opt  = (void *)buf_ptr;
         opt->kind = KATRAN_TCP_HDR_OPT_KIND_TPR;
         opt->len = KATRAN_TCP_HDR_OPT_LEN_TPR;
+
         opt->srv_id = myrand() % KATRAN_MAX_QUIC_REALS;
-        if (opt->srv_id == 0) // server id zero is invalid
+        if (opt->srv_id == 0)
           opt->srv_id = 1;
+        /* static uint32_t last_srv_id = 1; */
+        /* opt->srv_id = last_srv_id; */
+        /* last_srv_id = (last_srv_id + 1024) % KATRAN_MAX_QUIC_REALS; */
+        /* if (last_srv_id == 0) // server id zero is invalid */
+        /*   last_srv_id = 1; */
+
         opt->pad = 0;
         // TODO: do I need to add more options?
 #endif
