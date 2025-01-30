@@ -21,10 +21,11 @@ bg_load_gen_ctrl=128.110.218.172
 fg_load_gen_ctrl=128.110.218.166
 
 # Configure the load steps depending to your experiment (packet per second)
-load_steps=( 10000 100000 500000 1000000 1300000 1600000 1900000 2000000 2300000 2600000 )
+load_steps=( 10000 100000 500000 1000000 1500000 2000000 2500000 3000000 3500000 4000000 4500000 5000000 5500000 6000000 6500000 7000000 )
 # load_steps=( 10000 )
-bg_time=120
-fg_time=50
+bg_time=120 # sec
+fg_time=50 # sec
+warm_up_time=30 # sec
 lat_tmp_file=/tmp/measurements.txt
 store_dir=$HOME/results/
 
@@ -33,7 +34,8 @@ run_bg() {
 	load=$1
 	cmd="sudo $app --lcores '0@(2,4)' -a $dpdk_pci --
 	--client --ip-local $bg_load_gen
-	--ip-dest $dut --duration $bg_time --batch 32 --rate $load &> /dev/null &"
+	--ip-dest $dut --port 1201 --duration $bg_time
+	--batch 32 --rate $load &> /dev/null &"
 	ssh $USER@$bg_load_gen_ctrl $cmd
 }
 
@@ -60,9 +62,17 @@ do_warm_up() {
 	run_bg 100000
 }
 
+on_signal() {
+	clean_everything
+	echo "Scripted interrupted!"
+	exit 1
+}
+
+trap 'on_signal' SIGINT SIGHUP
+
 mkdir -p $store_dir
 do_warm_up
-sleep 30 # warm up time
+sleep $warm_up_time
 clean_everything
 
 for offered_load in ${load_steps[@]}; do
