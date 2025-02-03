@@ -30,6 +30,7 @@
 // Length of the tcp header option
 #define KATRAN_TCP_HDR_OPT_LEN_TPR 6
 #define KATRAN_MAX_QUIC_REALS 0x00fffffe
+#define TCP_NOP_OPT 0x01
 #endif
 
 // function declarations
@@ -388,8 +389,10 @@ int do_client(void *_cntx) {
         udp_hdr->dgram_len = rte_cpu_to_be_16(dgram_len);
         udp_hdr->dgram_cksum = 0;
 #else
+        const uint32_t count_noop_opt = 2;
         // the TCP option is 6 bytes and 2 bytes of padding for making it a multiple of 4B (32-bit block)
-        const size_t size_tcp_opts = 8;
+        const size_t size_tcp_opts = KATRAN_TCP_HDR_OPT_LEN_TPR +  count_noop_opt;
+        assert (size_tcp_opts % 4 == 0);
         const size_t hdr_size = sizeof(struct rte_tcp_hdr) + size_tcp_opts;
         ipv4_hdr->next_proto_id = IPPROTO_TCP;
         ipv4_hdr->total_length = rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) +
@@ -410,11 +413,15 @@ int do_client(void *_cntx) {
         tcp_hdr->cksum = 0;
         tcp_hdr->tcp_urp = 0;
         buf_ptr = rte_pktmbuf_append(buf, size_tcp_opts);
+        for (uint32_t z = 0; z < count_noop_opt; z++) {
+          *buf_ptr = TCP_NOP_OPT;
+          buf_ptr++;
+        }
         struct {
           uint8_t kind;
           uint8_t len;
           uint32_t srv_id;
-          uint16_t pad;
+          /* uint16_t pad; */
         } __attribute__((packed)) *opt  = (void *)buf_ptr;
         opt->kind = KATRAN_TCP_HDR_OPT_KIND_TPR;
         opt->len = KATRAN_TCP_HDR_OPT_LEN_TPR;
@@ -428,7 +435,7 @@ int do_client(void *_cntx) {
         /* if (last_srv_id == 0) // server id zero is invalid */
         /*   last_srv_id = 1; */
 
-        opt->pad = 0;
+        /* opt->pad = 0; */
         // TODO: do I need to add more options?
 #endif
 
