@@ -1,4 +1,7 @@
 /* vim: set et ts=2 sw=2: */
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -9,7 +12,6 @@
 #include <rte_ip.h>
 #include <rte_mbuf.h>
 #include <rte_udp.h>
-#include <rte_tcp.h>
 // current project
 #include "exp.h"
 #include "percentile.h"
@@ -19,29 +21,18 @@
 
 #define BURST_SIZE (512)
 #define MAX_EXPECTED_LATENCY (10000) // (us)
-#define PAYLOAD "rtqeijsuiggqlxkuuvsoerdzvgbphgpyrkecwbsynngpruiubtgzcwtfltjmmnpwapcbyioboiqdbxebcrqyehebezbdwyrvdbhxfsbearajfmmscsinujutdqcftxchgzptyfypojbmnpjovoartkwupbfowfvxhfimrltocjoousmumwrqvjxukjtztcyahxfoldflyquyixahobffjawyzzaawghbjgfhpajqevfflpgoiiotkqjbajhhvyhmnydmkxbrgpbavcdaanjopmnsewoebkqgqcbvxsblfgulcogxeqkaxnytevmpwobljlxtjhygawmbhktewhbiytjlmjxxtfmwytlogigvpfsgihyxgkmskppxikspqmnrarxbzihzwqufsltxiioyvcsrhjiqlcfqcavtxsrbqnogyxwerqlpiwextpuxvmflwbazjynzeiprcttniqtmdusjxwqfdzfocowaywwnmedqjfizajdqbetslgjqzsvadscxbdwrywffiwlgybupukobjpjlspaofjkmhszxzskirdieshmpfqsggjnhyiiadaumiisuontoomswlyhiyuwaupjwfjdeulymoqvmrwlncncqdaobnfmbiknxwadgbrpsfixqhnbbgnacuoivmlyxzflqnoobpqffnmkpxkzcyvoqnjvibphoxueqkjqhvgjurnxchlbncxvvbeettppluoxtzewefcaktcupcqueeymcyietauqtgycceyhfqpawsnydcuehnjfpkpnsvmpieauhoawchmpiymzirhvfxcnrtdsgmxoblqycfzfsgzvtdwdhcqtakezphfntfsxagkrtwofqsaipibbzqydlcvlungidzgqmkkreznoutrclipksaaefpokubbycpkpfddceydjxjmdpryujwqqpeohbmyhwrgeqtsirfykynkelarbjdfycjzjfuzcitiaadbfvwlwteefdsqvzarxhrtbsjeppkpszjrdfvkufynwvihygfykpvitpaqnxdedkytwlkcbttogfaqdsveqrtymflcxhvbumcifjklzpcqhfbpbwhyoaekjpcisswegubzcyjdwzyqxsshkpdsynfofowakfmasnudmzazgdxvvtajatwxskuitxjoewuvbhhhjdhqozoqfvquyioizhlqwqyaidvokcfbcsgnhfmthsmktbntvoleaeznatmmuawslyinilsvefdizgnbnayaxhzxxphuyzyfycmrsmidqlglknsxchkqstcsqaofvxgscfqsqlfvcwvbnhrxdclzxwettbkpsfyaafowvhlgmglesaehsionovcshwkxfxtaczcxpgzevwrbclqtkfhfbuztqhcylyufuhbcjodlxyssvvikfalxdxadvllbhyxelqsadeuxpjnochcxdlgxgjzderdhnwahmuzbqtwpnsuwhhxfwcbuahkgctljjqvqct"
 
-#define SEND_TCP_WITH_KATRAN_SERVER_OPT 1
-#ifdef SEND_TCP_WITH_KATRAN_SERVER_OPT
-// the structure of the header-option used to embed server_id is:
-//  __u8 kind | __u8 len | __u32 server_id
-// Arbitrarily picked unused value from IANA TCP Option Kind Numbers
-#define KATRAN_TCP_HDR_OPT_KIND_TPR 0xB7
-// Length of the tcp header option
-#define KATRAN_TCP_HDR_OPT_LEN_TPR 6
-#define KATRAN_MAX_QUIC_REALS 0x00fffffe
-#define TCP_NOP_OPT 0x01
-#endif
+/* TODO: can I make this project into a frame work for programmable load
+ * generation? what does that mean and how does it differ from Trex? */
+#define NUM_REQ_ID 32
+#define NUM_OBJECTS 2000000
+typedef struct {
+  uint32_t count_req;
+  int reqs[0];
+} __attribute__((packed)) req_t;
 
 // function declarations
 void *_run_receiver_thread(void *_arg);
-
-
-// struct token_bucket {
-  // uint64_t tokens; // Current tokens in the bucket
-  // uint64_t rate; // Tokens added per second
-  // uint64_t last_fill; // Last time the bucket was filled
-// };
 
 typedef struct {
   int running;
@@ -69,7 +60,8 @@ int do_client(void *_cntx) {
   uint32_t *dst_ips = cntx->dst_ips;
   int count_dst_ip = cntx->count_dst_ip;
   unsigned int dst_port; // = cntx->dst_port;
-  int payload_length = cntx->payload_length;
+  /* int payload_length = cntx->payload_length; */
+  int payload_length = sizeof(req_t) + NUM_REQ_ID * sizeof(int);
   FILE *fp = cntx->fp; // or stdout
   uint32_t count_flow = cntx->count_flow;
   uint32_t base_port_number = cntx->base_port_number;
@@ -92,7 +84,6 @@ int do_client(void *_cntx) {
   uint16_t nb_tx = 0;
   uint16_t i;
   uint32_t dst_ip;
-  uint64_t timestamp;
   uint64_t hz;
   int can_send = 1;
   uint16_t flow_q[count_dst_ip * count_flow];
@@ -374,7 +365,6 @@ int do_client(void *_cntx) {
         ipv4_hdr->src_addr = rte_cpu_to_be_32(src_ip + ip_offset);
         ipv4_hdr->dst_addr = rte_cpu_to_be_32(dst_ip);
 
-#ifndef SEND_TCP_WITH_KATRAN_SERVER_OPT
         struct rte_udp_hdr *udp_hdr;
         ipv4_hdr->next_proto_id = IPPROTO_UDP;
         ipv4_hdr->total_length =
@@ -388,72 +378,14 @@ int do_client(void *_cntx) {
         const size_t dgram_len = sizeof(struct rte_udp_hdr) + payload_length;
         udp_hdr->dgram_len = rte_cpu_to_be_16(dgram_len);
         udp_hdr->dgram_cksum = 0;
-#else
-        const uint32_t count_noop_opt = 2;
-        // the TCP option is 6 bytes and 2 bytes of padding for making it a multiple of 4B (32-bit block)
-        const size_t size_tcp_opts = KATRAN_TCP_HDR_OPT_LEN_TPR +  count_noop_opt;
-        assert (size_tcp_opts % 4 == 0);
-        const size_t hdr_size = sizeof(struct rte_tcp_hdr) + size_tcp_opts;
-        ipv4_hdr->next_proto_id = IPPROTO_TCP;
-        ipv4_hdr->total_length = rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) +
-            hdr_size + payload_length);
-        buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_tcp_hdr));
-        struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)buf_ptr;
-        /* tcp_hdr->src_port = rte_cpu_to_be_16(src_port + port_offset); */
-        static uint16_t __c = 0;
-        __c = (__c+1) % 2;
-        tcp_hdr->src_port = rte_cpu_to_be_16(src_port + __c);
-
-        tcp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
-        tcp_hdr->sent_seq = 123; // TODO: does it matter in our experiment?
-        tcp_hdr->recv_ack = 321; // TODO: does it matter in our experiment?
-        tcp_hdr->data_off = (((hdr_size) / 4) & 0xf) << 4; // how many 32 bit rows?
-        tcp_hdr->tcp_flags = RTE_TCP_ACK_FLAG | RTE_TCP_PSH_FLAG;
-        tcp_hdr->rx_win = 256; // TODO: does it matter in our experiment?
-        tcp_hdr->cksum = 0;
-        tcp_hdr->tcp_urp = 0;
-        buf_ptr = rte_pktmbuf_append(buf, size_tcp_opts);
-        for (uint32_t z = 0; z < count_noop_opt; z++) {
-          *buf_ptr = TCP_NOP_OPT;
-          buf_ptr++;
-        }
-        struct {
-          uint8_t kind;
-          uint8_t len;
-          uint32_t srv_id;
-          /* uint16_t pad; */
-        } __attribute__((packed)) *opt  = (void *)buf_ptr;
-        opt->kind = KATRAN_TCP_HDR_OPT_KIND_TPR;
-        opt->len = KATRAN_TCP_HDR_OPT_LEN_TPR;
-
-        opt->srv_id = myrand() % KATRAN_MAX_QUIC_REALS;
-        if (opt->srv_id == 0)
-          opt->srv_id = 1;
-        /* static uint32_t last_srv_id = 1; */
-        /* opt->srv_id = last_srv_id; */
-        /* last_srv_id = (last_srv_id + 1024) % KATRAN_MAX_QUIC_REALS; */
-        /* if (last_srv_id == 0) // server id zero is invalid */
-        /*   last_srv_id = 1; */
-
-        /* opt->pad = 0; */
-        // TODO: do I need to add more options?
-#endif
 
         /* payload */
         buf_ptr = rte_pktmbuf_append(buf, payload_length);
-        /* add timestamp */
-        // TODO: This timestamp is only valid on this machine, not time sycn.
-        // maybe ntp or something similar should be implemented
-        // or just send the base time stamp at the begining.
-        timestamp = rte_get_timer_cycles();
-        *(uint64_t *)buf_ptr = timestamp;
-
-        /* request a fib number */
-        /* *(uint64_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 0; */
-        /* *(uint32_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 80; */
-
-        memcpy(buf_ptr + sizeof(timestamp), PAYLOAD,
-            payload_length - sizeof(timestamp));
+        req_t *r = (req_t *)buf_ptr;
+        r->count_req = NUM_REQ_ID;
+        for (int m = 0; m < NUM_REQ_ID; m++) {
+          r->reqs[m] = rand() % NUM_OBJECTS;
+        }
 
         if (use_vlan) {
           buf->l2_len = RTE_ETHER_HDR_LEN + sizeof(struct rte_vlan_hdr);
@@ -463,11 +395,7 @@ int do_client(void *_cntx) {
         buf->l3_len = sizeof(struct rte_ipv4_hdr);
         // TODO: if the hardware does not support the checksum offload, I have
         // to calculate it in this program ...
-#ifdef SEND_TCP_WITH_KATRAN_SERVER_OPT
-        buf->ol_flags = RTE_MBUF_F_TX_IP_CKSUM | RTE_MBUF_F_TX_IPV4 | RTE_MBUF_F_TX_TCP_CKSUM;
-#else
         buf->ol_flags = RTE_MBUF_F_TX_IP_CKSUM | RTE_MBUF_F_TX_IPV4 | RTE_MBUF_F_TX_UDP_CKSUM;
-#endif
       }
 
       /* send packets */
@@ -564,7 +492,6 @@ void *_run_receiver_thread(void *_arg)
   struct context *cntx = arg->cntx;
   uint64_t start_time = arg->start_time;
   uint64_t ignore_result_duration = arg->ignore_result_duration;
-  struct p_hist **hist = arg->hist;
   uint64_t *total_received_pkts = arg->total_received_pkts;
 
   // context values
@@ -577,7 +504,6 @@ void *_run_receiver_thread(void *_arg)
   uint8_t use_vlan = cntx->use_vlan;
   int count_dst_ip = cntx->count_dst_ip;
   uint32_t *dst_ips = cntx->dst_ips;
-  uint32_t base_port_number = cntx->base_port_number;
 
   struct rte_mbuf *recv_bufs[BURST_SIZE];
   struct rte_mbuf *buf;
@@ -589,12 +515,9 @@ void *_run_receiver_thread(void *_arg)
   struct rte_ether_hdr *eth_hdr;
   // struct rte_vlan_hdr *vlan_hdr;
   struct rte_ipv4_hdr *ipv4_hdr;
-  struct rte_udp_hdr *udp_hdr;
   uint32_t recv_ip;
   int found;
   uint64_t end_time;
-  uint64_t timestamp;
-  uint64_t latency;
   int k, j;
 
   while (arg->running) {
@@ -666,19 +589,7 @@ void *_run_receiver_thread(void *_arg)
         continue;
       }
 
-      /* get timestamp */
-      ptr = ptr + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_udp_hdr);
-      timestamp = (*(uint64_t *)ptr);
-      latency = (rte_get_timer_cycles() - timestamp) * 1000 * 1000 /
-                rte_get_timer_hz(); // (us)
-      // only measure one flow latency for destination (not aggregate)
-      udp_hdr = (struct rte_udp_hdr *)(ipv4_hdr + 1);
-      uint16_t src_port = rte_be_to_cpu_16(udp_hdr->src_port);
-      // printf("recv dst_port: %d base_port: %d\n", src_port, base_port_number);
-      if (src_port == base_port_number)
-        add_number_to_p_hist(hist[k], (float)latency);
       total_received_pkts[k] += 1;
-
       rte_pktmbuf_free(buf); // free packet
     }
   }
