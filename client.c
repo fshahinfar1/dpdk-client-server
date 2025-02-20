@@ -27,8 +27,11 @@
 #define NUM_REQ_ID 32
 #define NUM_OBJECTS 2000000
 typedef struct {
+  int data[2];
+} __attribute__((packed)) my_val_t;
+typedef struct {
   uint32_t count_req;
-  int reqs[0];
+  my_val_t reqs[0];
 } __attribute__((packed)) req_t;
 
 // function declarations
@@ -61,7 +64,7 @@ int do_client(void *_cntx) {
   int count_dst_ip = cntx->count_dst_ip;
   unsigned int dst_port; // = cntx->dst_port;
   /* int payload_length = cntx->payload_length; */
-  int payload_length = sizeof(req_t) + NUM_REQ_ID * sizeof(int);
+  int payload_length = sizeof(req_t) + NUM_REQ_ID * sizeof(my_val_t);
   FILE *fp = cntx->fp; // or stdout
   uint32_t count_flow = cntx->count_flow;
   uint32_t base_port_number = cntx->base_port_number;
@@ -383,8 +386,11 @@ int do_client(void *_cntx) {
         buf_ptr = rte_pktmbuf_append(buf, payload_length);
         req_t *r = (req_t *)buf_ptr;
         r->count_req = NUM_REQ_ID;
+        static int __tmp = 0;
         for (int m = 0; m < NUM_REQ_ID; m++) {
-          r->reqs[m] = rand() % NUM_OBJECTS;
+          r->reqs[m].data[0] = __tmp;
+          r->reqs[m].data[1] = r->reqs[m].data[0] + 1;
+          __tmp = (__tmp + 1) % 1 << 22;
         }
 
         if (use_vlan) {
@@ -589,7 +595,7 @@ void *_run_receiver_thread(void *_arg)
         continue;
       }
 
-      char *payload = ptr + 20 + 8;
+      // char *payload = ptr + 20 + 8;
       /* printf("1:%s", payload); */
       /* printf("2:%s", payload+32); */
 
