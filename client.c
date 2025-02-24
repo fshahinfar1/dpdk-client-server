@@ -47,9 +47,14 @@ static inline uint16_t get_tci(uint16_t prio, uint16_t dei, uint16_t vlan_id) {
   return prio << 13 | dei << 12 | vlan_id;
 }
 
+#include "dataset/loader.h"
+
 int do_client(void *_cntx) {
   struct context *cntx = (struct context *)_cntx;
   int dpdk_port = cntx->dpdk_port_id;
+
+  entry_t *entries = NULL;
+  const int num_entries = load_routing_dataset(&entries);
 
   uint16_t qid = cntx->default_qid;
   const uint16_t count_queues = cntx->count_queues;
@@ -384,7 +389,8 @@ int do_client(void *_cntx) {
         req_t *r = (req_t *)buf_ptr;
         r->count_req = NUM_REQ_ID;
         for (int m = 0; m < NUM_REQ_ID; m++) {
-          r->reqs[m] = rand() % NUM_OBJECTS;
+          int x = rand() % num_entries;
+          r->reqs[m] = entries[x].data;
         }
 
         if (use_vlan) {
