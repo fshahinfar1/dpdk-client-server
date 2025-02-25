@@ -19,13 +19,14 @@
 #include "zipf.h"
 #include "exponential.h"
 
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define BURST_SIZE (512)
 #define MAX_EXPECTED_LATENCY (10000) // (us)
 
 /* TODO: can I make this project into a frame work for programmable load
  * generation? what does that mean and how does it differ from Trex? */
 #define NUM_REQ_ID 32
-#define NUM_OBJECTS 2000000
+#define NUM_OBJECTS 1000000
 typedef struct {
   uint32_t count_req;
   int reqs[0];
@@ -54,7 +55,12 @@ int do_client(void *_cntx) {
   int dpdk_port = cntx->dpdk_port_id;
 
   entry_t *entries = NULL;
-  const int num_entries = load_routing_dataset(&entries);
+  int num_entries = load_routing_dataset(&entries);
+  num_entries = MIN(num_entries, NUM_OBJECTS);
+  if (num_entries < NUM_OBJECTS) {
+    fprintf(stderr, "Warning: request for %d object but there are only %d\n",
+        NUM_OBJECTS, num_entries);
+  }
 
   uint16_t qid = cntx->default_qid;
   const uint16_t count_queues = cntx->count_queues;
@@ -391,6 +397,7 @@ int do_client(void *_cntx) {
         for (int m = 0; m < NUM_REQ_ID; m++) {
           int x = rand() % num_entries;
           r->reqs[m] = entries[x].data;
+          /* printf("- %d\n", r->reqs[m]); */
         }
 
         if (use_vlan) {
