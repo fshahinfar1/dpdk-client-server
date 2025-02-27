@@ -26,7 +26,7 @@
 /* TODO: can I make this project into a frame work for programmable load
  * generation? what does that mean and how does it differ from Trex? */
 #define NUM_REQ_ID 32
-#define NUM_OBJECTS 1000000
+#define NUM_OBJECTS 2000000
 typedef struct {
   uint32_t count_req;
   int reqs[0];
@@ -382,10 +382,12 @@ int do_client(void *_cntx) {
             rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) +
                              sizeof(struct rte_udp_hdr) + payload_length);
         // upd header
+        src_port = myrand() % (1 << 16);
+        uint16_t _dst_port = myrand() % (1 << 16);
         buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_udp_hdr));
         udp_hdr = (struct rte_udp_hdr *)buf_ptr;
-        udp_hdr->src_port = rte_cpu_to_be_16(src_port + port_offset);
-        udp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
+        udp_hdr->src_port = rte_cpu_to_be_16(src_port);
+        udp_hdr->dst_port = rte_cpu_to_be_16(_dst_port);
         const size_t dgram_len = sizeof(struct rte_udp_hdr) + payload_length;
         udp_hdr->dgram_len = rte_cpu_to_be_16(dgram_len);
         udp_hdr->dgram_cksum = 0;
@@ -395,8 +397,8 @@ int do_client(void *_cntx) {
         req_t *r = (req_t *)buf_ptr;
         r->count_req = NUM_REQ_ID;
         for (int m = 0; m < NUM_REQ_ID; m++) {
-          int x = rand() % num_entries;
-          r->reqs[m] = entries[x].data;
+          /* int x = rand() % num_entries; */
+          r->reqs[m] = 0;
           /* printf("- %d\n", r->reqs[m]); */
         }
 
