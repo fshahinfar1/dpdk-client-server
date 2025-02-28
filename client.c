@@ -26,7 +26,7 @@
 /* TODO: can I make this project into a frame work for programmable load
  * generation? what does that mean and how does it differ from Trex? */
 #define NUM_REQ_ID 32
-#define NUM_OBJECTS 1000000
+#define NUM_OBJECTS 2000000
 typedef struct {
   uint32_t count_req;
   int reqs[0];
@@ -50,7 +50,21 @@ static inline uint16_t get_tci(uint16_t prio, uint16_t dei, uint16_t vlan_id) {
 
 #include "dataset/loader.h"
 
+static int load_routing_dataset2(entry_t **out)
+{
+    entry_t *keys = calloc(NUM_OBJECTS, sizeof(entry_t));
+    assert (keys != NULL);
+    for (int i = 0; i < NUM_OBJECTS; i++) {
+        entry_t *k = &keys[i];
+        k->prefixlen = 24;
+        k->data = i << 8;
+    }
+    *out = keys;
+    return NUM_OBJECTS;
+}
+
 int do_client(void *_cntx) {
+  srand(0);
   struct context *cntx = (struct context *)_cntx;
   int dpdk_port = cntx->dpdk_port_id;
 
@@ -603,8 +617,8 @@ void *_run_receiver_thread(void *_arg)
       }
 
       char *payload = ptr + 20 + 8;
-      /* printf("1:%s", payload); */
-      /* printf("2:%s", payload+32); */
+      printf("1:%s", payload);
+      printf("2:%s", payload+32);
 
       total_received_pkts[k] += 1;
       rte_pktmbuf_free(buf); // free packet
