@@ -616,9 +616,9 @@ void *_run_receiver_thread(void *_arg)
         continue;
       }
 
-      char *payload = ptr + 20 + 8;
-      printf("1:%s", payload);
-      printf("2:%s", payload+32);
+      /* char *payload = ptr + 20 + 8; */
+      /* printf("1:%s", payload); */
+      /* printf("2:%s", payload+32); */
 
       total_received_pkts[k] += 1;
       rte_pktmbuf_free(buf); // free packet
