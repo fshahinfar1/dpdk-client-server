@@ -144,7 +144,6 @@ int do_client(void *_cntx) {
 
   struct zipfgen *dst_zipf;
   struct zipfgen *queue_zipf;
-  struct zipfgen *src_zipf;
 
   pthread_t recv_thread;
 
@@ -182,21 +181,6 @@ int do_client(void *_cntx) {
 
   const uint32_t count_src_addrs = 1;
   const uint32_t src_id_count_ports = 1;
-  /* const uint32_t count_src_addrs = 100; */
-  /* const uint32_t src_id_count_ports = 10; */
-  /* const uint32_t count_src_addrs = 10000; */
-  /* const uint32_t src_id_count_ports = 100; */
-  /* const uint32_t count_src_addrs = 100000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  /* const uint32_t count_src_addrs = 1000000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  /* const uint32_t count_src_addrs = 2500000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  /* const uint32_t count_src_addrs = 5000000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  /* const uint32_t count_src_addrs = 8000000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  src_zipf = new_zipfgen(count_src_addrs, 0); // zero is uniform
 
   fprintf(fp, "Client src port %d\n", src_port);
 
@@ -289,28 +273,9 @@ int do_client(void *_cntx) {
         selected_dst = (selected_dst + 1) % count_dst_ip; // round robin
       }
 
-      // flow = (flow + 1) % (count_dst_ip * count_flow); // round robin
       cur_flow = flow;
       flow = (selected_dst * count_flow) + (dst_port - base_port_number);
       // ===================================================================
-
-      // implement a proper rate limit based on packet per second
-
-      // In your packet sending loop
-      // uint64_t now = rte_get_timer_cycles();
-      // uint64_t elapsed = now - tb.last_fill;
-
-      // Refill the token bucket
-      // tb.tokens += elapsed * tb.rate / rte_get_timer_hz();
-      // tb.last_fill = now;
-
-
-      // If there are not enough tokens, drop or queue the packet
-      // if (tb.tokens < 64) { // Define PACKET_SIZE as the size of your packets
-        // continue;
-      // }
-
-
       // rate limit
       uint64_t ts = end_time;
       delta_time = ts - tp_start_ts;
@@ -368,10 +333,7 @@ int do_client(void *_cntx) {
         ipv4_hdr->time_to_live = 64;
         ipv4_hdr->hdr_checksum = 0;
 
-        const uint32_t src_idx = src_zipf->gen(src_zipf) - 1;
-        const uint32_t ip_offset = src_idx / src_id_count_ports;
-        const uint32_t port_offset = src_idx % src_id_count_ports;
-        ipv4_hdr->src_addr = rte_cpu_to_be_32(src_ip + ip_offset);
+        ipv4_hdr->src_addr = rte_cpu_to_be_32(src_ip);
         ipv4_hdr->dst_addr = rte_cpu_to_be_32(dst_ip);
 
 #ifndef SEND_TCP_WITH_KATRAN_SERVER_OPT
@@ -383,7 +345,7 @@ int do_client(void *_cntx) {
         // upd header
         buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_udp_hdr));
         udp_hdr = (struct rte_udp_hdr *)buf_ptr;
-        udp_hdr->src_port = rte_cpu_to_be_16(src_port + port_offset);
+        udp_hdr->src_port = rte_cpu_to_be_16(src_port);
         udp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
         const size_t dgram_len = sizeof(struct rte_udp_hdr) + payload_length;
         udp_hdr->dgram_len = rte_cpu_to_be_16(dgram_len);
@@ -554,7 +516,6 @@ int do_client(void *_cntx) {
   free(hist);
   free_zipfgen(dst_zipf);
   free_zipfgen(queue_zipf);
-  free_zipfgen(src_zipf);
   cntx->running = 0;
   return 0;
 }
