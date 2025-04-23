@@ -247,7 +247,9 @@ int do_client(void *_cntx) {
   }
 
   // main tx worker loop
-  while (cntx->running) {
+  const size_t target = 40 * 1024;
+  size_t sent = 0;
+  while (sent < target) {
     end_time = rte_get_timer_cycles();
 
     // TODO: this is just for testing the switch system
@@ -489,6 +491,7 @@ int do_client(void *_cntx) {
       // tb.tokens -= 64 * nb_tx;
 
       throughput[cur_flow] += nb_tx;
+      sent += nb_tx;
 
       /* delay between sending each batch */
       /* wait(get_exponential_sample(0.001)); */
