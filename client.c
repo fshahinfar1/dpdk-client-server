@@ -21,7 +21,7 @@
 #define MAX_EXPECTED_LATENCY (10000) // (us)
 #define PAYLOAD "rtqeijsuiggqlxkuuvsoerdzvgbphgpyrkecwbsynngpruiubtgzcwtfltjmmnpwapcbyioboiqdbxebcrqyehebezbdwyrvdbhxfsbearajfmmscsinujutdqcftxchgzptyfypojbmnpjovoartkwupbfowfvxhfimrltocjoousmumwrqvjxukjtztcyahxfoldflyquyixahobffjawyzzaawghbjgfhpajqevfflpgoiiotkqjbajhhvyhmnydmkxbrgpbavcdaanjopmnsewoebkqgqcbvxsblfgulcogxeqkaxnytevmpwobljlxtjhygawmbhktewhbiytjlmjxxtfmwytlogigvpfsgihyxgkmskppxikspqmnrarxbzihzwqufsltxiioyvcsrhjiqlcfqcavtxsrbqnogyxwerqlpiwextpuxvmflwbazjynzeiprcttniqtmdusjxwqfdzfocowaywwnmedqjfizajdqbetslgjqzsvadscxbdwrywffiwlgybupukobjpjlspaofjkmhszxzskirdieshmpfqsggjnhyiiadaumiisuontoomswlyhiyuwaupjwfjdeulymoqvmrwlncncqdaobnfmbiknxwadgbrpsfixqhnbbgnacuoivmlyxzflqnoobpqffnmkpxkzcyvoqnjvibphoxueqkjqhvgjurnxchlbncxvvbeettppluoxtzewefcaktcupcqueeymcyietauqtgycceyhfqpawsnydcuehnjfpkpnsvmpieauhoawchmpiymzirhvfxcnrtdsgmxoblqycfzfsgzvtdwdhcqtakezphfntfsxagkrtwofqsaipibbzqydlcvlungidzgqmkkreznoutrclipksaaefpokubbycpkpfddceydjxjmdpryujwqqpeohbmyhwrgeqtsirfykynkelarbjdfycjzjfuzcitiaadbfvwlwteefdsqvzarxhrtbsjeppkpszjrdfvkufynwvihygfykpvitpaqnxdedkytwlkcbttogfaqdsveqrtymflcxhvbumcifjklzpcqhfbpbwhyoaekjpcisswegubzcyjdwzyqxsshkpdsynfofowakfmasnudmzazgdxvvtajatwxskuitxjoewuvbhhhjdhqozoqfvquyioizhlqwqyaidvokcfbcsgnhfmthsmktbntvoleaeznatmmuawslyinilsvefdizgnbnayaxhzxxphuyzyfycmrsmidqlglknsxchkqstcsqaofvxgscfqsqlfvcwvbnhrxdclzxwettbkpsfyaafowvhlgmglesaehsionovcshwkxfxtaczcxpgzevwrbclqtkfhfbuztqhcylyufuhbcjodlxyssvvikfalxdxadvllbhyxelqsadeuxpjnochcxdlgxgjzderdhnwahmuzbqtwpnsuwhhxfwcbuahkgctljjqvqct"
 
-#define SEND_TCP_WITH_KATRAN_SERVER_OPT 1
+/* #define SEND_TCP_WITH_KATRAN_SERVER_OPT 1 */
 #ifdef SEND_TCP_WITH_KATRAN_SERVER_OPT
 // the structure of the header-option used to embed server_id is:
 //  __u8 kind | __u8 len | __u32 server_id
@@ -441,19 +441,32 @@ int do_client(void *_cntx) {
 
         /* payload */
         buf_ptr = rte_pktmbuf_append(buf, payload_length);
+
+
+        static uint64_t _tmp_counter = 0;
+        uint32_t _req_fib = 100;
+        _tmp_counter++;
+        if (_tmp_counter % 11 == 0) {
+          _req_fib = 0;
+        }
+        /* request the fibonacci number */
+        *(uint32_t *)buf_ptr = _req_fib;
+        buf_ptr += sizeof(uint32_t);
+
         /* add timestamp */
         // TODO: This timestamp is only valid on this machine, not time sycn.
         // maybe ntp or something similar should be implemented
         // or just send the base time stamp at the begining.
         timestamp = rte_get_timer_cycles();
         *(uint64_t *)buf_ptr = timestamp;
+        buf_ptr += sizeof(uint64_t);
 
         /* request a fib number */
         /* *(uint64_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 0; */
         /* *(uint32_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 80; */
 
-        memcpy(buf_ptr + sizeof(timestamp), PAYLOAD,
-            payload_length - sizeof(timestamp));
+        memcpy(buf_ptr, PAYLOAD,
+            payload_length - sizeof(timestamp) -sizeof(uint32_t));
 
         if (use_vlan) {
           buf->l2_len = RTE_ETHER_HDR_LEN + sizeof(struct rte_vlan_hdr);
@@ -668,6 +681,7 @@ void *_run_receiver_thread(void *_arg)
 
       /* get timestamp */
       ptr = ptr + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_udp_hdr);
+      ptr += sizeof(uint32_t); // skip the fibonacci number we requested
       timestamp = (*(uint64_t *)ptr);
       latency = (rte_get_timer_cycles() - timestamp) * 1000 * 1000 /
                 rte_get_timer_hz(); // (us)
