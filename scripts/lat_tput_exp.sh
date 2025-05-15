@@ -17,17 +17,22 @@ dut=192.168.1.1
 bg_load_gen=192.168.1.2
 fg_load_gen=192.168.1.3
 
-bg_load_gen_ctrl=128.110.218.172
-fg_load_gen_ctrl=128.110.218.166
+bg_load_gen_ctrl=128.110.220.13
+fg_load_gen_ctrl=128.110.220.60
 
 # Configure the load steps depending to your experiment (packet per second)
-load_steps=( 10000 100000 500000 1000000 1500000 2000000 2500000 3000000 3500000 4000000 4500000 5000000 5500000 6000000 6500000 7000000 )
+load_steps=( 10000 100000 500000 1000000 2000000 4000000 6000000 8000000 10000000 12000000 14000000 16000000 18000000 )
 # load_steps=( 10000 )
 bg_time=120 # sec
 fg_time=50 # sec
 warm_up_time=30 # sec
 lat_tmp_file=/tmp/measurements.txt
-store_dir=$HOME/results/
+store_dir=$HOME/results/single_socket_single_worker/
+# store_dir=$HOME/results/single_socket_multiple_worker/
+
+# does the echo server encapsulate the original header? It will offset the
+# timestamp value in the packet. Enter the offset (size of header) here:
+encap_size=0
 
 run_bg() {
 	# @param $1: offered load
@@ -42,7 +47,7 @@ run_bg() {
 run_fg() {
 	cmd="sudo $app -l 2 -a $dpdk_pci --
 	--latency-client --ip-local $fg_load_gen
-	--ip-dest $dut --hdr-encap-sz 20
+	--ip-dest $dut --hdr-encap-sz $encap_size
 	--delay 1000000 &> $lat_tmp_file &"
 	ssh $USER@$fg_load_gen_ctrl $cmd
 }

@@ -221,7 +221,7 @@ int do_client(void *_cntx) {
     for (int i = 0; i < count_dst_ip; i++)
       /* 1c:34:da:41:c6:fc */
       _server_eth[i] = (struct rte_ether_addr)
-                              {{0x1c, 0x34, 0xda, 0x41, 0xc6, 0xfc}};
+                              {{0x30, 0x3e, 0xa7, 0x1c, 0xf8, 0xe1}};
   }
   server_eth = _server_eth[0];
 
