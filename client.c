@@ -315,10 +315,11 @@ int do_client(void *_cntx) {
       uint64_t ts = end_time;
       delta_time = ts - tp_start_ts;
       if (delta_time > rte_get_timer_hz()) {
-        printf("tp: %ld\n", throughput[0]);
-        throughput[0] = 0;
-        for (uint32_t i = 0; i < count_dst_ip * count_flow; i++)
+        for (uint32_t i = 0; i < count_dst_ip * count_flow; i++) {
+          printf("tp: flow-id(%d): %ld\n", i, throughput[i]);
           throughput[i] = 0;
+        }
+        printf("...\n");
         // throughput = 0;
         tp_start_ts = ts;
       }
