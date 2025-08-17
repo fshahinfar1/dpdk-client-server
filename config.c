@@ -32,6 +32,10 @@ static void print_usage_client(void)
       "    --rate (pps)     [default: 0 no rate limit]\n"
       "    --payload (UDP payload size) [default: 64 bytes]\n"
       "    --batch   [default: 32]\n"
+      "    --zipf-client-addr use different client addresses with a\n"
+      "                       zipfian ditribution. \n"
+      "                       format: total-count/count-port/zipf-parameter\n"
+      "                       [default: 1/1/0]\n"
       );
 }
 
@@ -98,6 +102,42 @@ static void check_client_mode(void)
   }
 }
 
+static void _parse_zipf_client_addr_arg(void)
+{
+  // format total-addresses/count-ports/zipf-arg
+  char *input = strdup(optarg);
+  char *tmp = NULL;
+  config.client.select_src_ip = true;
+  tmp = strtok(input, "/");
+  if (tmp == NULL) {
+    goto unexpected_format;
+  }
+  config.client.unique_client_addresses = atoi(tmp);
+  
+  tmp = strtok(NULL, "/");
+  if (tmp == NULL) {
+    goto unexpected_format;
+  }
+  config.client.unique_client_ports = atoi(tmp);
+
+  tmp = strtok(NULL, "\0");
+  if (tmp == NULL) {
+    goto unexpected_format;
+  }
+  config.client.zipf_arg = atof(tmp);
+
+  if (config.client.unique_client_ports > config.client.unique_client_addresses) {
+    fprintf(stderr, "Parsing --zipf-client-addr: number of ports can not be more than total addresses! (%s)\n", optarg);
+    rte_exit(EXIT_FAILURE, "Failed to parse arguments\n");
+  }
+
+  free(input);
+  return;
+unexpected_format:
+  fprintf(stderr, "The --zipf-client-addr value is in wrong format (%s)\n", optarg);
+  rte_exit(EXIT_FAILURE, "Failed to parse arguments\n");
+}
+
 void parse_args(int argc, char *argv[])
 {
   int ret;
@@ -123,6 +163,7 @@ void parse_args(int argc, char *argv[])
     UNIDIR,
     NO_ARP,
     HDR_ENCP_SZ,
+    ZIPF_CLIENT_ADDR,
   };
 
   struct option long_opts[] = {
@@ -144,6 +185,7 @@ void parse_args(int argc, char *argv[])
     {"no-arp",             no_argument,       NULL, NO_ARP},
     {"num-queue",          required_argument, NULL, NUM_QUEUE},
     {"hdr-encap-sz",       required_argument, NULL, HDR_ENCP_SZ},
+    {"zipf-client-addr",   required_argument, NULL, ZIPF_CLIENT_ADDR},
     /* End of option list ----------------------------------------------- */
     {NULL, 0, NULL, 0},
   };
@@ -161,6 +203,10 @@ void parse_args(int argc, char *argv[])
   config.client.batch = 0;
   config.client.count_flow = 1;
   config.client.hdr_encp_sz = 0;
+
+  config.client.select_src_ip = false;
+  config.client.unique_client_addresses = 1;
+  config.client.unique_client_ports = 1;
 
   // let dpdk parse its own arguments
   uint32_t args_parsed = dpdk_init(argc, argv);
@@ -286,6 +332,12 @@ void parse_args(int argc, char *argv[])
           rte_exit(EXIT_FAILURE, "Expected to be in latency-client mode (hdr_encp_sze)\n");
         }
         config.client.hdr_encp_sz = atoi(optarg);
+        break;
+      case ZIPF_CLIENT_ADDR:
+        if (config.mode != mode_client) {
+          rte_exit(EXIT_FAILURE, "Expected to be in latency-client mode (zipf-client-addr)\n");
+        }
+        _parse_zipf_client_addr_arg();
         break;
       case HELP:
         usage();

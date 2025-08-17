@@ -16,12 +16,12 @@ ifneq ($(HAS_MLX),)
 LDFLAGS += -lmlx5
 endif
 
-$(info CFLAGS:)
-$(info  $(CFLAGS))
-$(info ------------------------------)
-$(info LDFLAGS:)
-$(info $(LDFLAGS))
-$(info ------------------------------)
+# $(info CFLAGS:)
+# $(info  $(CFLAGS))
+# $(info ------------------------------)
+# $(info LDFLAGS:)
+# $(info $(LDFLAGS))
+# $(info ------------------------------)
 
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))

@@ -16,34 +16,19 @@
 #include "arp.h"
 #include "zipf.h"
 #include "exponential.h"
+#include "config.h"
+
+#include "client/prepare_packet.h"
+#include "client/prepare_tcp_pkt.h"
+#include "client/write_payload.h"
 
 #define BURST_SIZE (512)
 #define MAX_EXPECTED_LATENCY (10000) // (us)
-#define PAYLOAD "rtqeijsuiggqlxkuuvsoerdzvgbphgpyrkecwbsynngpruiubtgzcwtfltjmmnpwapcbyioboiqdbxebcrqyehebezbdwyrvdbhxfsbearajfmmscsinujutdqcftxchgzptyfypojbmnpjovoartkwupbfowfvxhfimrltocjoousmumwrqvjxukjtztcyahxfoldflyquyixahobffjawyzzaawghbjgfhpajqevfflpgoiiotkqjbajhhvyhmnydmkxbrgpbavcdaanjopmnsewoebkqgqcbvxsblfgulcogxeqkaxnytevmpwobljlxtjhygawmbhktewhbiytjlmjxxtfmwytlogigvpfsgihyxgkmskppxikspqmnrarxbzihzwqufsltxiioyvcsrhjiqlcfqcavtxsrbqnogyxwerqlpiwextpuxvmflwbazjynzeiprcttniqtmdusjxwqfdzfocowaywwnmedqjfizajdqbetslgjqzsvadscxbdwrywffiwlgybupukobjpjlspaofjkmhszxzskirdieshmpfqsggjnhyiiadaumiisuontoomswlyhiyuwaupjwfjdeulymoqvmrwlncncqdaobnfmbiknxwadgbrpsfixqhnbbgnacuoivmlyxzflqnoobpqffnmkpxkzcyvoqnjvibphoxueqkjqhvgjurnxchlbncxvvbeettppluoxtzewefcaktcupcqueeymcyietauqtgycceyhfqpawsnydcuehnjfpkpnsvmpieauhoawchmpiymzirhvfxcnrtdsgmxoblqycfzfsgzvtdwdhcqtakezphfntfsxagkrtwofqsaipibbzqydlcvlungidzgqmkkreznoutrclipksaaefpokubbycpkpfddceydjxjmdpryujwqqpeohbmyhwrgeqtsirfykynkelarbjdfycjzjfuzcitiaadbfvwlwteefdsqvzarxhrtbsjeppkpszjrdfvkufynwvihygfykpvitpaqnxdedkytwlkcbttogfaqdsveqrtymflcxhvbumcifjklzpcqhfbpbwhyoaekjpcisswegubzcyjdwzyqxsshkpdsynfofowakfmasnudmzazgdxvvtajatwxskuitxjoewuvbhhhjdhqozoqfvquyioizhlqwqyaidvokcfbcsgnhfmthsmktbntvoleaeznatmmuawslyinilsvefdizgnbnayaxhzxxphuyzyfycmrsmidqlglknsxchkqstcsqaofvxgscfqsqlfvcwvbnhrxdclzxwettbkpsfyaafowvhlgmglesaehsionovcshwkxfxtaczcxpgzevwrbclqtkfhfbuztqhcylyufuhbcjodlxyssvvikfalxdxadvllbhyxelqsadeuxpjnochcxdlgxgjzderdhnwahmuzbqtwpnsuwhhxfwcbuahkgctljjqvqct"
 
-#define SEND_TCP_WITH_KATRAN_SERVER_OPT 1 // send TC packet
-#define ADD_OPT 1 // add Katran specific TCP option (server_id)
-
-#ifdef SEND_TCP_WITH_KATRAN_SERVER_OPT
-// the structure of the header-option used to embed server_id is:
-//  __u8 kind | __u8 len | __u32 server_id
-// Arbitrarily picked unused value from IANA TCP Option Kind Numbers
-#define KATRAN_TCP_HDR_OPT_KIND_TPR 0xB7
-// Length of the tcp header option
-#define KATRAN_TCP_HDR_OPT_LEN_TPR 6
-#define KATRAN_MAX_QUIC_REALS 0x00fffffe
-#define TCP_NOP_OPT 0x01
-#endif
+// #define USE_TCP 1
 
 // function declarations
 void *_run_receiver_thread(void *_arg);
-
-
-// struct token_bucket {
-  // uint64_t tokens; // Current tokens in the bucket
-  // uint64_t rate; // Tokens added per second
-  // uint64_t last_fill; // Last time the bucket was filled
-// };
 
 typedef struct {
   int running;
@@ -86,15 +71,9 @@ int do_client(void *_cntx) {
   uint64_t ignore_result_duration = 0;
 
   struct rte_mbuf *bufs[BURST_SIZE];
-  struct rte_mbuf *buf;
-  char *buf_ptr;
-  struct rte_ether_hdr *eth_hdr;
-  struct rte_vlan_hdr *vlan_hdr;
-  struct rte_ipv4_hdr *ipv4_hdr;
   uint16_t nb_tx = 0;
   uint16_t i;
   uint32_t dst_ip;
-  uint64_t timestamp;
   uint64_t hz;
   int can_send = 1;
   uint16_t flow_q[count_dst_ip * count_flow];
@@ -117,12 +96,7 @@ int do_client(void *_cntx) {
   int k;
   float percentile;
 
-  // TODO: take rate limit option from config or args, currently it is off
   int rate_limit = cntx->rate_limit;
-  // struct token_bucket tb;
-  // tb.tokens = 0;
-  // tb.rate = cntx->rate; // Define PACKET_RATE_LIMIT as your desired rate limit
-  // tb.last_fill = rte_get_timer_cycles();
 
   uint64_t throughput[count_dst_ip * count_flow];
   uint64_t tp_limit = cntx->rate;
@@ -140,13 +114,11 @@ int do_client(void *_cntx) {
 
   uint8_t cdq = 0;
 
-  // hardcoded burst size TODO: get from args
   uint16_t burst_sizes[count_dst_ip];
   uint16_t burst;
 
   struct zipfgen *dst_zipf;
   struct zipfgen *queue_zipf;
-  struct zipfgen *src_zipf;
 
   pthread_t recv_thread;
 
@@ -178,29 +150,14 @@ int do_client(void *_cntx) {
   // Zipf initialization
   dst_zipf = new_zipfgen(count_dst_ip, /* skewness: */ 2); // values in range [1, count_dst_ip]
   queue_zipf = new_zipfgen(count_queues, /* skewness: */ 2); // values in range [1, count_queues]
-  /* const uint32_t count_src_addrs = 7000000; */
-  /* /1* the number of different ports to use in making different src addresses *1/ */
-  /* const uint32_t src_id_count_ports = 1000; */
 
-  /* const uint32_t count_src_addrs = 1; */
-  /* const uint32_t src_id_count_ports = 1; */
-  /* const uint32_t count_src_addrs = 100; */
-  /* const uint32_t src_id_count_ports = 10; */
-  /* const uint32_t count_src_addrs = 10000; */
-  /* const uint32_t src_id_count_ports = 100; */
-  /* const uint32_t count_src_addrs = 100000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  /* const uint32_t count_src_addrs = 1000000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  /* const uint32_t count_src_addrs = 2500000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  /* const uint32_t count_src_addrs = 5000000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  /* const uint32_t count_src_addrs = 7000000; */
-  /* const uint32_t src_id_count_ports = 1000; */
-  const uint32_t count_src_addrs = 8000000;
-  const uint32_t src_id_count_ports = 1000;
-  src_zipf = new_zipfgen(count_src_addrs, 0); // zero is uniform
+  struct zipf_client_addr *select_client_addr_info = NULL;
+  if (config.client.select_src_ip) {
+    select_client_addr_info = malloc(sizeof(struct zipf_client_addr));
+    select_client_addr_info->src_zipf =
+        new_zipfgen(config.client.unique_client_addresses, config.client.zipf_arg);
+    select_client_addr_info->count_port = config.client.unique_client_ports;
+  }
 
   fprintf(fp, "Client src port %d\n", src_port);
 
@@ -254,9 +211,6 @@ int do_client(void *_cntx) {
   while (cntx->running) {
     end_time = rte_get_timer_cycles();
 
-    // TODO: this is just for testing the switch system
-    // if (total_sent_pkts[0] > 1024) break;
-
     if (duration > 0 && end_time > start_time + duration) {
       if (can_send) {
         can_send = 0;
@@ -277,7 +231,10 @@ int do_client(void *_cntx) {
         selected_q = flow_q[flow];
       }
 
+      // TODO: I think I have broken multiple destination support, test
+      // this and remove assertaion
       assert(selected_dst == 0);
+
       server_eth = _server_eth[selected_dst];
       tci = get_tci(prio[selected_dst], dei, vlan_id);
       dst_port = dst_port + 1;
@@ -293,10 +250,8 @@ int do_client(void *_cntx) {
         selected_dst = (selected_dst + 1) % count_dst_ip; // round robin
       }
 
-      // flow = (flow + 1) % (count_dst_ip * count_flow); // round robin
       cur_flow = flow;
       flow = (selected_dst * count_flow) + (dst_port - base_port_number);
-      // ===================================================================
 
       // rate limit
       uint64_t ts = end_time;
@@ -322,144 +277,30 @@ int do_client(void *_cntx) {
         continue;
       }
 
+      struct prepare_packet_info pkt_info = {
+          .use_vlan = use_vlan,
+          .client_address_selection = FIX_CLIENT_ADDR,
+          .src_mac = &my_eth,
+          .dst_mac = &server_eth,
+          .src_ip = src_ip,
+          .dst_ip = dst_ip,
+          .src_port = src_port,
+          .dst_port = dst_port,
+          .tci = tci,
+          .payload_length = payload_length,
+      };
+
       // create a burst for selected flow
       for (int i = 0; i < burst; i++) {
-        buf = bufs[i];
-        // ether header
-        buf_ptr = rte_pktmbuf_append(buf, RTE_ETHER_HDR_LEN);
-        eth_hdr = (struct rte_ether_hdr *)buf_ptr;
-
-        rte_ether_addr_copy(&my_eth, &eth_hdr->src_addr);
-        rte_ether_addr_copy(&server_eth, &eth_hdr->dst_addr);
-        assert(memcmp(&eth_hdr->dst_addr, &_server_eth[0], 6) == 0);
-        if (use_vlan) {
-          eth_hdr->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_VLAN);
-        } else {
-          eth_hdr->ether_type = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
-        }
-
-        // vlan header
-        if (use_vlan) {
-          buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_vlan_hdr));
-          vlan_hdr = (struct rte_vlan_hdr *)buf_ptr;
-          vlan_hdr->vlan_tci = rte_cpu_to_be_16(tci);
-          vlan_hdr->eth_proto = rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4);
-        }
-
-        // ipv4 header
-        buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_ipv4_hdr));
-        ipv4_hdr = (struct rte_ipv4_hdr *)buf_ptr;
-        ipv4_hdr->version_ihl = 0x45;
-        ipv4_hdr->type_of_service = 0;
-        ipv4_hdr->packet_id = 0;
-        ipv4_hdr->fragment_offset = 0;
-        ipv4_hdr->time_to_live = 64;
-        ipv4_hdr->hdr_checksum = 0;
-
-        const uint32_t src_idx = src_zipf->gen(src_zipf) - 1;
-        const uint32_t ip_offset = src_idx / src_id_count_ports;
-        const uint32_t port_offset = src_idx % src_id_count_ports;
-        ipv4_hdr->src_addr = rte_cpu_to_be_32(src_ip + ip_offset);
-        ipv4_hdr->dst_addr = rte_cpu_to_be_32(dst_ip);
-
-#ifndef SEND_TCP_WITH_KATRAN_SERVER_OPT
-        struct rte_udp_hdr *udp_hdr;
-        ipv4_hdr->next_proto_id = IPPROTO_UDP;
-        ipv4_hdr->total_length =
-            rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) +
-                             sizeof(struct rte_udp_hdr) + payload_length);
-        // upd header
-        buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_udp_hdr));
-        udp_hdr = (struct rte_udp_hdr *)buf_ptr;
-        udp_hdr->src_port = rte_cpu_to_be_16(src_port + port_offset);
-        udp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
-        const size_t dgram_len = sizeof(struct rte_udp_hdr) + payload_length;
-        udp_hdr->dgram_len = rte_cpu_to_be_16(dgram_len);
-        udp_hdr->dgram_cksum = 0;
+        void *payload;
+#ifdef USE_TCP
+        struct tcp_packet_info tcp_info = { .add_katran_option = false, };
+        prepare_tcp(bufs[i], &pkt_info, &tcp_info, &payload);
 #else
-#ifdef ADD_OPT
-        const uint32_t count_noop_opt = 2;
-        // the TCP option is 6 bytes and 2 bytes of padding for making it a multiple of 4B (32-bit block)
-        const size_t size_tcp_opts = KATRAN_TCP_HDR_OPT_LEN_TPR +  count_noop_opt;
-        assert (size_tcp_opts % 4 == 0);
-#else
-        const uint32_t size_tcp_opts = 0;
-#endif
-        const size_t hdr_size = sizeof(struct rte_tcp_hdr) + size_tcp_opts;
-        ipv4_hdr->next_proto_id = IPPROTO_TCP;
-        ipv4_hdr->total_length = rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) +
-            hdr_size + payload_length);
-        buf_ptr = rte_pktmbuf_append(buf, sizeof(struct rte_tcp_hdr));
-        struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)buf_ptr;
-        /* tcp_hdr->src_port = rte_cpu_to_be_16(src_port + port_offset); */
-        /* static uint16_t __c = 0; */
-        /* __c = (__c+1) % 2; */
-        tcp_hdr->src_port = rte_cpu_to_be_16(src_port + port_offset);
-
-        tcp_hdr->dst_port = rte_cpu_to_be_16(dst_port);
-        tcp_hdr->sent_seq = 123; // TODO: does it matter in our experiment?
-        tcp_hdr->recv_ack = 321; // TODO: does it matter in our experiment?
-        tcp_hdr->data_off = (((hdr_size) / 4) & 0xf) << 4; // how many 32 bit rows?
-        tcp_hdr->tcp_flags = RTE_TCP_ACK_FLAG | RTE_TCP_PSH_FLAG;
-        tcp_hdr->rx_win = 256; // TODO: does it matter in our experiment?
-        tcp_hdr->cksum = 0;
-        tcp_hdr->tcp_urp = 0;
-
-#ifdef ADD_OPT
-        buf_ptr = rte_pktmbuf_append(buf, size_tcp_opts);
-        for (uint32_t z = 0; z < count_noop_opt; z++) {
-          *buf_ptr = TCP_NOP_OPT;
-          buf_ptr++;
-        }
-        struct {
-          uint8_t kind;
-          uint8_t len;
-          uint32_t srv_id;
-          /* uint16_t pad; */
-        } __attribute__((packed)) *opt  = (void *)buf_ptr;
-        opt->kind = KATRAN_TCP_HDR_OPT_KIND_TPR;
-        opt->len = KATRAN_TCP_HDR_OPT_LEN_TPR;
-
-        opt->srv_id = myrand() % KATRAN_MAX_QUIC_REALS;
-        if (opt->srv_id == 0)
-          opt->srv_id = 1;
-        /* static uint32_t last_srv_id = 1; */
-        /* opt->srv_id = last_srv_id; */
-        /* last_srv_id = (last_srv_id + 1024) % KATRAN_MAX_QUIC_REALS; */
-        /* if (last_srv_id == 0) // server id zero is invalid */
-        /*   last_srv_id = 1; */
-
-        /* opt->pad = 0; */
-        // TODO: do I need to add more options?
-#endif
+        prepare_udp(bufs[i], &pkt_info, &payload);
 #endif
 
-        /* payload */
-        buf_ptr = rte_pktmbuf_append(buf, payload_length);
-        /* add timestamp. this timestamp is only valid on this machine */
-        timestamp = rte_get_timer_cycles();
-        *(uint64_t *)buf_ptr = timestamp;
-
-        /* request a fib number */
-        /* *(uint64_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 0; */
-        /* *(uint32_t *)(buf_ptr + (sizeof(struct rte_udp_hdr))) = 80; */
-
-        memcpy(buf_ptr + sizeof(timestamp), PAYLOAD,
-            payload_length - sizeof(timestamp));
-
-        if (use_vlan) {
-          buf->l2_len = RTE_ETHER_HDR_LEN + sizeof(struct rte_vlan_hdr);
-        } else {
-          buf->l2_len = RTE_ETHER_HDR_LEN;
-        }
-        buf->l3_len = sizeof(struct rte_ipv4_hdr);
-        // TODO: if the hardware does not support the checksum offload, I have
-        // to calculate it in this program ...
-#ifdef SEND_TCP_WITH_KATRAN_SERVER_OPT
-        buf->ol_flags = RTE_MBUF_F_TX_IP_CKSUM | RTE_MBUF_F_TX_IPV4 | RTE_MBUF_F_TX_TCP_CKSUM;
-#else
-        buf->ol_flags = RTE_MBUF_F_TX_IP_CKSUM | RTE_MBUF_F_TX_IPV4 | RTE_MBUF_F_TX_UDP_CKSUM;
-#endif
+        payload_timestamp(payload, payload_length);
       }
 
       /* send packets */
@@ -482,8 +323,6 @@ int do_client(void *_cntx) {
 
       throughput[cur_flow] += nb_tx;
 
-      /* delay between sending each batch */
-      /* wait(get_exponential_sample(0.001)); */
       // Inter arrival Time
       if (delay_cycles > 0) {
         // rte_delay_us_block(delay_us);
@@ -544,7 +383,6 @@ int do_client(void *_cntx) {
   free(hist);
   free_zipfgen(dst_zipf);
   free_zipfgen(queue_zipf);
-  free_zipfgen(src_zipf);
   cntx->running = 0;
   return 0;
 }

@@ -33,6 +33,12 @@ struct client_config {
   uint64_t delay_cycles;
   uint16_t batch;
   int16_t hdr_encp_sz;
+  
+  bool select_src_ip;
+  uint32_t unique_client_addresses;
+  uint32_t unique_client_ports;
+  float zipf_arg;
+  
 };
 
 struct server_config {
