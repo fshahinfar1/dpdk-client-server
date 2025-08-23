@@ -25,7 +25,7 @@ endif
 
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))
-OUTPUT_DIR  := ./build/
+OUTPUT_DIR  := ./build
 
 # Extra libraries we need
 LIBS = -lpcap -lnuma \
@@ -33,7 +33,10 @@ LIBS = -lpcap -lnuma \
        -lm
 
 # binary name
-APP = $(OUTPUT_DIR)/app
+BIN =  $(OUTPUT_DIR)/app
+BIN += $(OUTPUT_DIR)/client_udp_number
+BIN += $(OUTPUT_DIR)/client_tcp_timestamp
+BIN += $(OUTPUT_DIR)/client_tcp_number
 
 # all source are stored in SRCS-y
 SRCS := main.c
@@ -54,11 +57,7 @@ _BUILT_OBJECTS = $(patsubst %.o, $(OUTPUT_DIR)/%.o, $(OBJS))
 
 .PHONY: default clean
 
-default: $(OUTPUT_DIR) $(APP)
-
-# Actually building the app
-$(APP): $(SRCS) $(HEADER_FILES) Makefile
-	$(CC) -o $@ $(CFLAGS) $(SRCS) $(LDFLAGS) $(LIBS)
+default: $(OUTPUT_DIR) $(BIN)
 
 # Make sure that output directory exists
 $(OUTPUT_DIR):
@@ -67,3 +66,19 @@ $(OUTPUT_DIR):
 
 clean:
 	rm -rf build/
+
+$(OUTPUT_DIR)/app: $(SRCS) $(HEADER_FILES) Makefile
+	@echo Compiling $@
+	@$(CC) -o $@ $(CFLAGS) $(SRCS) $(LDFLAGS) $(LIBS)
+
+$(OUTPUT_DIR)/client_udp_number: $(SRCS) $(HEADER_FILES) Makefile
+	@echo Compiling $@
+	@$(CC) -o $@ $(CFLAGS) -D_PAYLOAD_NUMBER $(SRCS) $(LDFLAGS) $(LIBS)
+
+$(OUTPUT_DIR)/client_tcp_timestamp: $(SRCS) $(HEADER_FILES) Makefile
+	@echo Compiling $@
+	@$(CC) -o $@ $(CFLAGS) -D_USE_TCP $(SRCS) $(LDFLAGS) $(LIBS)
+
+$(OUTPUT_DIR)/client_tcp_number: $(SRCS) $(HEADER_FILES) Makefile
+	@echo Compiling $@
+	@$(CC) -o $@ $(CFLAGS) -D_USE_TCP -D_PAYLOAD_NUMBER $(SRCS) $(LDFLAGS) $(LIBS)

@@ -22,10 +22,15 @@
 #include "client/prepare_tcp_pkt.h"
 #include "client/write_payload.h"
 
-#define BURST_SIZE (512)
+#define MAX_BURST_SIZE (512)
 #define MAX_EXPECTED_LATENCY (10000) // (us)
 
-// #define USE_TCP 1
+/* Following compile flags control the behavior of this program.
+ * _USE_TCP 
+ * _PAYLOAD_NUMBER
+ * _RX_JUST_DROP
+ * _RX_PRINT_RESPONSE
+ * */
 
 // function declarations
 void *_run_receiver_thread(void *_arg);
@@ -70,7 +75,7 @@ int do_client(void *_cntx) {
   uint64_t duration = (cntx->duration < 0) ? 0 : ((unsigned int)cntx->duration) * rte_get_timer_hz();
   uint64_t ignore_result_duration = 0;
 
-  struct rte_mbuf *bufs[BURST_SIZE];
+  struct rte_mbuf *bufs[MAX_BURST_SIZE];
   uint16_t nb_tx = 0;
   uint16_t i;
   uint32_t dst_ip;
@@ -131,8 +136,8 @@ int do_client(void *_cntx) {
     burst_sizes[i] = cntx->batch;
   }
   burst = burst_sizes[0];
-  if (burst > BURST_SIZE) {
-    fprintf(stderr, "Maximum burst size is limited to %d (update if needed)\n", BURST_SIZE);
+  if (burst > MAX_BURST_SIZE) {
+    fprintf(stderr, "Maximum burst size is limited to %d (update if needed)\n", MAX_BURST_SIZE);
     rte_exit(EXIT_FAILURE, "something failed!\n");
   }
 
@@ -293,14 +298,19 @@ int do_client(void *_cntx) {
       // create a burst for selected flow
       for (int i = 0; i < burst; i++) {
         void *payload;
-#ifdef USE_TCP
+#ifdef _USE_TCP
         struct tcp_packet_info tcp_info = { .add_katran_option = false, };
         prepare_tcp(bufs[i], &pkt_info, &tcp_info, &payload);
 #else
         prepare_udp(bufs[i], &pkt_info, &payload);
 #endif
 
+#if defined(_PAYLOAD_NUMBER)
+        payload_random_num(payload, payload_length);
+#else
         payload_timestamp(payload, payload_length);
+// #pragma GCC error "Unexpected payload mode"
+#endif
       }
 
       /* send packets */
@@ -394,7 +404,6 @@ void *_run_receiver_thread(void *_arg)
   struct context *cntx = arg->cntx;
   uint64_t start_time = arg->start_time;
   uint64_t ignore_result_duration = arg->ignore_result_duration;
-  struct p_hist **hist = arg->hist;
   uint64_t *total_received_pkts = arg->total_received_pkts;
 
   // context values
@@ -409,7 +418,7 @@ void *_run_receiver_thread(void *_arg)
   uint32_t *dst_ips = cntx->dst_ips;
   uint32_t base_port_number = cntx->base_port_number;
 
-  struct rte_mbuf *recv_bufs[BURST_SIZE];
+  struct rte_mbuf *recv_bufs[MAX_BURST_SIZE];
   struct rte_mbuf *buf;
   int nb_rx;
   int rx_q;
@@ -419,19 +428,16 @@ void *_run_receiver_thread(void *_arg)
   struct rte_ether_hdr *eth_hdr;
   // struct rte_vlan_hdr *vlan_hdr;
   struct rte_ipv4_hdr *ipv4_hdr;
-  struct rte_udp_hdr *udp_hdr;
   uint32_t recv_ip;
   int found;
   uint64_t end_time;
-  uint64_t timestamp;
-  uint64_t latency;
   int k, j;
 
   while (arg->running) {
     end_time = rte_get_timer_cycles();
     nb_rx = 0;
     for (rx_q = qid; rx_q < qid + count_queues; rx_q++) {
-      nb_rx = rte_eth_rx_burst(dpdk_port, rx_q, recv_bufs, BURST_SIZE);
+      nb_rx = rte_eth_rx_burst(dpdk_port, rx_q, recv_bufs, MAX_BURST_SIZE);
       if (nb_rx != 0)
         break;
     }
@@ -439,8 +445,11 @@ void *_run_receiver_thread(void *_arg)
 
     for (j = 0; j < nb_rx; j++) {
       buf = recv_bufs[j];
+  
+#ifdef _RX_JUST_DROP
       rte_pktmbuf_free(buf); // free packet
       continue;
+#endif
 
       valid_pkt = check_eth_hdr(src_ip, &my_eth, buf, tx_mem_pool, cdq);
       if (unlikely(!valid_pkt)) {
@@ -496,6 +505,17 @@ void *_run_receiver_thread(void *_arg)
         continue;
       }
 
+#if defined(_RX_PRINT_RESPONSE)
+      ptr = ptr + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_udp_hdr);
+      printf("%s\n", ptr);
+#endif
+
+#ifndef _PAYLOAD_NUMBER
+      uint64_t timestamp;
+      uint64_t latency;
+      struct rte_udp_hdr *udp_hdr;
+      struct p_hist **hist = arg->hist;
+
       /* get timestamp */
       ptr = ptr + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_udp_hdr);
       timestamp = (*(uint64_t *)ptr);
@@ -508,6 +528,7 @@ void *_run_receiver_thread(void *_arg)
       if (src_port == base_port_number)
         add_number_to_p_hist(hist[k], (float)latency);
       total_received_pkts[k] += 1;
+#endif
 
       rte_pktmbuf_free(buf); // free packet
     }
