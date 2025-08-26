@@ -183,11 +183,12 @@ int do_client(void *_cntx) {
     }
     printf("ARP requests finished\n");
   } else {
-    // set fake destination mac address
-    for (int i = 0; i < count_dst_ip; i++)
-      /* 1c:34:da:41:c6:fc */
-      _server_eth[i] = (struct rte_ether_addr)
-                              {{0xe8,0xeb,0xd3,0xa7,0xc,0xb6}};
+    for (int i = 0; i < count_dst_ip; i++) {
+      // set fake destination mac address
+      // _server_eth[i] = (struct rte_ether_addr) {{0xe8,0xeb,0xd3,0xa7,0xc,0xb6}};
+
+      rte_memcpy(&_server_eth[i], &config.dest_mac[i], 6);
+    }
   }
   server_eth = _server_eth[0];
 

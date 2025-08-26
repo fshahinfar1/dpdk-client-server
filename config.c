@@ -32,6 +32,8 @@ static void print_usage_client(void)
       "    --rate (pps)     [default: 0 no rate limit]\n"
       "    --payload (UDP payload size) [default: 64 bytes]\n"
       "    --batch   [default: 32]\n"
+      "    --unidir  [default: false]\n"
+      "    --no-arp <mac address> do not send ARP and use the given MAC address [default: false]\n"
       "    --zipf-client-addr use different client addresses with a\n"
       "                       zipfian ditribution. \n"
       "                       format: total-count/count-port/zipf-parameter\n"
@@ -138,6 +140,31 @@ unexpected_format:
   rte_exit(EXIT_FAILURE, "Failed to parse arguments\n");
 }
 
+void _parse_no_arp_arg(void)
+{
+  char *input = strdup(optarg);
+  char *tmp = NULL;
+  if (input == NULL) {
+    rte_exit(EXIT_FAILURE, "Failed while parsing --no-arp");
+  }
+
+  for (int i = 0; i < 5; i++) {
+    tmp = strtok(input, ":");
+    if (tmp == NULL) {
+      rte_exit(EXIT_FAILURE, "Failed while parsing --no-arp");
+    }
+    input = NULL;
+    sscanf(tmp, "%2hhx", &config.dest_mac[i]);
+  }
+  tmp = strtok(NULL, "\0");
+  if (tmp == NULL) {
+    rte_exit(EXIT_FAILURE, "Failed while parsing --no-arp");
+  }
+  sscanf(tmp, "%2hhx", &config.dest_mac[5]);
+
+  free(input);
+}
+
 void parse_args(int argc, char *argv[])
 {
   int ret;
@@ -182,7 +209,7 @@ void parse_args(int argc, char *argv[])
     {"batch",              required_argument, NULL, BATCH_SIZE},
     {"payload",            required_argument, NULL, PAYLOAD_LENGTH},
     {"unidir",             no_argument,       NULL, UNIDIR},
-    {"no-arp",             no_argument,       NULL, NO_ARP},
+    {"no-arp",             required_argument, NULL, NO_ARP},
     {"num-queue",          required_argument, NULL, NUM_QUEUE},
     {"hdr-encap-sz",       required_argument, NULL, HDR_ENCP_SZ},
     {"zipf-client-addr",   required_argument, NULL, ZIPF_CLIENT_ADDR},
@@ -326,6 +353,7 @@ void parse_args(int argc, char *argv[])
         break;
       case NO_ARP:
         config.do_arp = 0;
+        _parse_no_arp_arg();
         break;
       case HDR_ENCP_SZ:
         if (config.mode != mode_latency_clinet) {

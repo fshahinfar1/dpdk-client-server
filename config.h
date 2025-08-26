@@ -59,6 +59,7 @@ struct app_config {
     struct client_config client;
     struct server_config server;
   };
+  uint8_t dest_mac[6]; // used when do_arp is false
 };
 
 // Some global variables
