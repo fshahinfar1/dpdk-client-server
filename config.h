@@ -39,6 +39,7 @@ struct client_config {
   uint32_t unique_client_ports;
   float zipf_arg;
   
+  int max_num; // for client that sends number in payload
 };
 
 struct server_config {

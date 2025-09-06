@@ -164,6 +164,11 @@ int do_client(void *_cntx) {
     select_client_addr_info->count_port = config.client.unique_client_ports;
   }
 
+#if defined(_PAYLOAD_NUMBER)
+  fprintf(fp, "Generating payload in range 0 .. %d (uniformly)\n", config.client.max_num);
+  initialize_num_gen(config.client.max_num, 0 /*uniform distribution*/);
+#endif
+
   fprintf(fp, "Client src port %d\n", src_port);
 
   // get dst mac address

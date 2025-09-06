@@ -21,19 +21,26 @@ void payload_timestamp(char *payload, size_t payload_length)
   payload_constant_num(payload, payload_length, timestamp);
 }
 
+
+static struct zipfgen *zgen = NULL;
+void initialize_num_gen(int max, double s)
+{
+  if (zgen != NULL) {
+    free_zipfgen(zgen);
+  }
+  zgen = new_zipfgen(max, s);
+}
+
 void payload_random_num(char *payload, size_t payload_length)
 {
-  static struct zipfgen *zgen = NULL;
   uint64_t num;
 
   if (zgen == NULL) {
-    zgen = new_zipfgen(2000000, 0 /* zero means uniform*/);
-    if (zgen == NULL) {
-      fprintf(stderr, "Failed to initialize! @payload_random_num\n");
-      return;
-    }
+    fprintf(stderr, "Failed to initialize! @payload_random_num\n");
+    return;
   }
+
   // num = myrand() % 2000000;
-  num = zgen->gen(zgen) - 1; 
+  num = zgen->gen(zgen) - 1;
   payload_constant_num(payload, payload_length, num);
 }

@@ -38,6 +38,7 @@ static void print_usage_client(void)
       "                       zipfian ditribution. \n"
       "                       format: total-count/count-port/zipf-parameter\n"
       "                       [default: 1/1/0]\n"
+      "    --max-num  for client sending number in payload. define the upper bound of nunmber\n"
       );
 }
 
@@ -191,6 +192,7 @@ void parse_args(int argc, char *argv[])
     NO_ARP,
     HDR_ENCP_SZ,
     ZIPF_CLIENT_ADDR,
+    MAX_NUM,
   };
 
   struct option long_opts[] = {
@@ -213,6 +215,7 @@ void parse_args(int argc, char *argv[])
     {"num-queue",          required_argument, NULL, NUM_QUEUE},
     {"hdr-encap-sz",       required_argument, NULL, HDR_ENCP_SZ},
     {"zipf-client-addr",   required_argument, NULL, ZIPF_CLIENT_ADDR},
+    {"max-num",            required_argument, NULL, MAX_NUM},
     /* End of option list ----------------------------------------------- */
     {NULL, 0, NULL, 0},
   };
@@ -234,6 +237,8 @@ void parse_args(int argc, char *argv[])
   config.client.select_src_ip = false;
   config.client.unique_client_addresses = 1;
   config.client.unique_client_ports = 1;
+
+  config.client.max_num = 2000000;
 
   // let dpdk parse its own arguments
   uint32_t args_parsed = dpdk_init(argc, argv);
@@ -366,6 +371,9 @@ void parse_args(int argc, char *argv[])
           rte_exit(EXIT_FAILURE, "Expected to be in latency-client mode (zipf-client-addr)\n");
         }
         _parse_zipf_client_addr_arg();
+        break;
+      case MAX_NUM:
+        sscanf(optarg, "%d", &config.client.max_num);
         break;
       case HELP:
         usage();
