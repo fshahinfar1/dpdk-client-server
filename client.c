@@ -299,7 +299,12 @@ int do_client(void *_cntx) {
           .dst_port = dst_port,
           .tci = tci,
           .payload_length = payload_length,
+          .client_addr_select_info = select_client_addr_info,
       };
+
+      if (config.client.select_src_ip) {
+        pkt_info.client_address_selection = ZIPF_CLIENT_ADDR;
+      }
 
       // create a burst for selected flow
       for (int i = 0; i < burst; i++) {
@@ -505,8 +510,8 @@ void *_run_receiver_thread(void *_arg)
       if (unlikely(found == 0)) {
         uint32_t ip = rte_be_to_cpu_32(recv_ip);
         uint8_t *bytes = (uint8_t *)(&ip);
-        printf("Ip: %u.%u.%u.%u\n", bytes[0], bytes[1], bytes[2], bytes[3]);
-        printf("k not found: qid=%d\n", qid);
+        /* printf("Ip: %u.%u.%u.%u\n", bytes[0], bytes[1], bytes[2], bytes[3]); */
+        /* printf("k not found: qid=%d\n", qid); */
         rte_pktmbuf_free(buf); // free packet
         continue;
       }

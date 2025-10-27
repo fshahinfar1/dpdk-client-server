@@ -98,6 +98,9 @@ void _prepare_eth_vlan_ip(struct rte_mbuf *buf,
       info->src_port += port_offset;
     }
     break;
+  default:
+    rte_exit(EXIT_FAILURE, "Unexpected client address selection mode\n");
+    break;
   }
 
   ipv4_hdr = (struct rte_ipv4_hdr *)rte_pktmbuf_append(buf, sizeof(struct rte_ipv4_hdr));
