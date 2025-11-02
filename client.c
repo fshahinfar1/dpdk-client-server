@@ -311,6 +311,7 @@ int do_client(void *_cntx) {
         void *payload;
 #ifdef _USE_TCP
         struct tcp_packet_info tcp_info = { .add_katran_option = false, };
+        // struct tcp_packet_info tcp_info = { .add_katran_option = true, };
         prepare_tcp(bufs[i], &pkt_info, &tcp_info, &payload);
 #else
         prepare_udp(bufs[i], &pkt_info, &payload);
@@ -322,6 +323,13 @@ int do_client(void *_cntx) {
         payload_timestamp(payload, payload_length);
 // #pragma GCC error "Unexpected payload mode"
 #endif
+
+        // TODO: this is a bad design, make pkt_info immutable
+        // NOTE: update these since they may have been modified in prepare_...
+        pkt_info.src_port = src_port;
+        pkt_info.src_ip = src_ip;
+        pkt_info.dst_port = dst_port;
+        pkt_info.dst_ip = dst_ip;
       }
 
       /* send packets */
