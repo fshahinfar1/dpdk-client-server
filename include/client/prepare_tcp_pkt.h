@@ -19,7 +19,7 @@ struct katran_srv_opt {
 } __attribute__((packed));
 
 struct tcp_packet_info {
-  bool add_katran_option;
+  uint32_t add_katran_option;
 };
 
 void prepare_tcp(struct rte_mbuf *buf,
@@ -37,7 +37,7 @@ void prepare_tcp(struct rte_mbuf *buf,
 
   _prepare_eth_vlan_ip(buf, info, &eth_hdr, &vlan_hdr, &ipv4_hdr);
 
-  if (tcp_info->add_katran_option) {
+  if (tcp_info->add_katran_option > 0) {
     count_noop_opt = 2; // noop is one byte so its size is same as count
     // the TCP option is 6 bytes and 2 bytes of padding for making it a multiple of 4B (32-bit block)
     size_tcp_opts = KATRAN_TCP_HDR_OPT_LEN_TPR + count_noop_opt;
@@ -63,7 +63,7 @@ void prepare_tcp(struct rte_mbuf *buf,
   tcp_hdr->cksum = 0;
   tcp_hdr->tcp_urp = 0;
 
-  if (tcp_info->add_katran_option) {
+  if (tcp_info->add_katran_option > 0) {
     buf_ptr = rte_pktmbuf_append(buf, size_tcp_opts);
     for (uint32_t z = 0; z < count_noop_opt; z++) {
         *buf_ptr = TCP_NOP_OPT;
@@ -73,7 +73,7 @@ void prepare_tcp(struct rte_mbuf *buf,
     opt->kind = KATRAN_TCP_HDR_OPT_KIND_TPR;
     opt->len = KATRAN_TCP_HDR_OPT_LEN_TPR;
 
-    opt->srv_id = myrand() % KATRAN_MAX_QUIC_REALS;
+    opt->srv_id = myrand() % tcp_info->add_katran_option;
     if (opt->srv_id == 0)
         opt->srv_id = 1;
     /* static uint32_t last_srv_id = 1; */

@@ -39,6 +39,7 @@ static void print_usage_client(void)
       "                       format: total-count/count-port/zipf-parameter\n"
       "                       [default: 1/1/0]\n"
       "    --max-num  for client sending number in payload. define the upper bound of nunmber\n"
+      "    --add-katran-opt [default: 0] for TCP client add katran header option selecting from N servers\n"
       );
 }
 
@@ -193,6 +194,7 @@ void parse_args(int argc, char *argv[])
     HDR_ENCP_SZ,
     ZIPF_CLIENT_ADDR,
     MAX_NUM,
+    ADD_KATRAN_OPT,
   };
 
   struct option long_opts[] = {
@@ -216,6 +218,7 @@ void parse_args(int argc, char *argv[])
     {"hdr-encap-sz",       required_argument, NULL, HDR_ENCP_SZ},
     {"zipf-client-addr",   required_argument, NULL, ZIPF_CLIENT_ADDR},
     {"max-num",            required_argument, NULL, MAX_NUM},
+    {"add-katran-opt",     required_argument, NULL, ADD_KATRAN_OPT},
     /* End of option list ----------------------------------------------- */
     {NULL, 0, NULL, 0},
   };
@@ -239,6 +242,8 @@ void parse_args(int argc, char *argv[])
   config.client.unique_client_ports = 1;
 
   config.client.max_num = 2000000;
+
+  config.client.add_katran_opt = 0;
 
   // let dpdk parse its own arguments
   uint32_t args_parsed = dpdk_init(argc, argv);
@@ -374,6 +379,9 @@ void parse_args(int argc, char *argv[])
         break;
       case MAX_NUM:
         sscanf(optarg, "%d", &config.client.max_num);
+        break;
+      case ADD_KATRAN_OPT:
+        config.client.add_katran_opt = atoi(optarg);
         break;
       case HELP:
         usage();

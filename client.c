@@ -310,8 +310,9 @@ int do_client(void *_cntx) {
       for (int i = 0; i < burst; i++) {
         void *payload;
 #ifdef _USE_TCP
-        struct tcp_packet_info tcp_info = { .add_katran_option = false, };
-        // struct tcp_packet_info tcp_info = { .add_katran_option = true, };
+        struct tcp_packet_info tcp_info = {
+          .add_katran_option = config.client.add_katran_opt,
+        };
         prepare_tcp(bufs[i], &pkt_info, &tcp_info, &payload);
 #else
         prepare_udp(bufs[i], &pkt_info, &payload);
@@ -464,7 +465,7 @@ void *_run_receiver_thread(void *_arg)
 
     for (j = 0; j < nb_rx; j++) {
       buf = recv_bufs[j];
-  
+ 
 #ifdef _RX_JUST_DROP
       rte_pktmbuf_free(buf); // free packet
       continue;
@@ -486,18 +487,19 @@ void *_run_receiver_thread(void *_arg)
           continue;
         }
       } else {
-        if (rte_be_to_cpu_16(eth_hdr->ether_type) != RTE_ETHER_TYPE_IPV4) {
+        uint16_t ethtype = rte_be_to_cpu_16(eth_hdr->ether_type);
+        if (ethtype != RTE_ETHER_TYPE_IPV4) {
           rte_pktmbuf_free(buf);
           continue;
         }
       }
 
       /* skip some seconds of the experiment, and do not record results */
-      if (unlikely(end_time <
-                   start_time + ignore_result_duration * rte_get_timer_hz())) {
-        rte_pktmbuf_free(buf); // free packet
-        continue;
-      }
+      /* if (unlikely(end_time < */
+      /*              start_time + ignore_result_duration * rte_get_timer_hz())) { */
+      /*   rte_pktmbuf_free(buf); // free packet */
+      /*   continue; */
+      /* } */
 
       if (use_vlan) {
         ptr = ptr + RTE_ETHER_HDR_LEN + sizeof(struct rte_vlan_hdr);
@@ -505,6 +507,22 @@ void *_run_receiver_thread(void *_arg)
         ptr = ptr + RTE_ETHER_HDR_LEN;
       }
       ipv4_hdr = (struct rte_ipv4_hdr *)ptr;
+
+      /* is IP in IP ? */
+      if (ipv4_hdr->next_proto_id == IPPROTO_IPIP) {
+        // katran response !
+        static uint64_t pkts = 0;
+        static uint64_t last_report = 0;
+        pkts++;
+        if (end_time - last_report > 2 * rte_get_timer_hz()) {
+          double rate = pkts * rte_get_timer_hz() / (double)(end_time - last_report);
+          printf("recv[%2d]: %.2f\n", qid, rate);
+          last_report = end_time;
+          pkts = 0;
+        }
+      }
+
+
       recv_ip = rte_be_to_cpu_32(ipv4_hdr->src_addr);
 
       /* find ip index */

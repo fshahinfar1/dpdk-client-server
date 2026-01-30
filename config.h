@@ -38,6 +38,8 @@ struct client_config {
   uint32_t unique_client_addresses;
   uint32_t unique_client_ports;
   float zipf_arg;
+
+  uint32_t add_katran_opt; /* only for TCP */
   
   int max_num; // for client that sends number in payload
 };
