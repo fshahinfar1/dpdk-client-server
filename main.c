@@ -208,7 +208,8 @@ int main(int argc, char *argv[]) {
     assert(next_qid - 1 < config.num_queues);
 
     cntxs[i].running = 1;     // this job of this cntx has not finished yet
-    cntxs[i].src_ip = config.source_ip + i;
+    // cntxs[i].src_ip = config.source_ip + i;
+    cntxs[i].src_ip = config.source_ip;
     cntxs[i].use_vlan = config.use_vlan;
     cntxs[i].bidi = config.bidi;
     cntxs[i].do_arp = config.do_arp;
@@ -243,16 +244,18 @@ int main(int argc, char *argv[]) {
       // this is a client application
 
       // TODO: fractions are not considered for this division
-      assert((config.client.count_server_ips % count_core) == 0);
-      assert((config.client.count_flow % count_core) == 0);
-      int ips = config.client.count_server_ips / count_core;
+      // assert((config.client.count_server_ips % count_core) == 0);
+      // assert((config.client.count_flow % count_core) == 0);
+      int ips = config.client.count_server_ips;//  / count_core;
 
-      cntxs[i].src_port = config.client.client_port + i;
+      // cntxs[i].src_port = config.client.client_port + i;
+      cntxs[i].src_port = config.client.client_port;
       cntxs[i].dst_ips = malloc(sizeof(int) * ips);
       {
         char ip_str[20];
         for (int j = 0; j < ips; j++) {
-          cntxs[i].dst_ips[j] = config.client.server_ips[findex++];
+          // cntxs[i].dst_ips[j] = config.client.server_ips[findex++];
+          cntxs[i].dst_ips[j] = config.client.server_ips[j];
           ip_to_str(cntxs[i].dst_ips[j], ip_str, 20);
           printf("ip: %s\n", ip_str);
         }
@@ -262,7 +265,7 @@ int main(int argc, char *argv[]) {
       cntxs[i].payload_length = config.payload_size;
       printf("server port is %d\n", config.server_port);
 
-      cntxs[i].count_flow = config.client.count_flow / count_core;
+      cntxs[i].count_flow = config.client.count_flow;
       cntxs[i].base_port_number = config.server_port;
 
       cntxs[i].duration = config.client.duration;

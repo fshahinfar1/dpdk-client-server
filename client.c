@@ -26,7 +26,7 @@
 #define MAX_EXPECTED_LATENCY (10000) // (us)
 
 /* Following compile flags control the behavior of this program.
- * _USE_TCP 
+ * _USE_TCP
  * _PAYLOAD_NUMBER
  * _RX_JUST_DROP
  * _RX_PRINT_RESPONSE
@@ -78,7 +78,7 @@ int do_client(void *_cntx) {
   struct rte_mbuf *bufs[MAX_BURST_SIZE];
   uint16_t nb_tx = 0;
   uint16_t i;
-  uint32_t dst_ip;
+  uint32_t dst_ip = dst_ips[0];
   uint64_t hz;
   int can_send = 1;
   uint16_t flow_q[count_dst_ip * count_flow];
@@ -193,6 +193,12 @@ int do_client(void *_cntx) {
       // _server_eth[i] = (struct rte_ether_addr) {{0xe8,0xeb,0xd3,0xa7,0xc,0xb6}};
 
       rte_memcpy(&_server_eth[i], &config.dest_mac[i], 6);
+      char ip[20];
+      ip_to_str(dst_ips[i], ip, 20);
+      printf("mac address for server %s received: ", ip);
+      printf("%x:%x:%x:%x:%x:%x\n",
+          _server_eth[i].addr_bytes[0],_server_eth[i].addr_bytes[1],_server_eth[i].addr_bytes[2],
+          _server_eth[i].addr_bytes[3],_server_eth[i].addr_bytes[4],_server_eth[i].addr_bytes[5]);
     }
   }
   server_eth = _server_eth[0];
@@ -345,6 +351,7 @@ int do_client(void *_cntx) {
       if (nb_tx < burst) {
         /* fprintf(stderr, "not all buffers were sent (%d)\n", burst - nb_tx); */
         // free packets failed to send
+        // printf("fialed to push some packets\n");
         for (i = nb_tx; i < burst; i++)
           rte_pktmbuf_free(bufs[i]);
       }
@@ -419,7 +426,6 @@ int do_client(void *_cntx) {
 
 void *_run_receiver_thread(void *_arg)
 {
-  printf("Receiver thread started\n");
   recv_thread_arg_t *arg = (recv_thread_arg_t *) _arg;
   struct context *cntx = arg->cntx;
   uint64_t start_time = arg->start_time;
@@ -453,6 +459,10 @@ void *_run_receiver_thread(void *_arg)
   uint64_t end_time;
   int k, j;
 
+  uint64_t pkts = 0;
+  uint64_t last_report = 0;
+
+  printf("Receiver thread started (qid: %d)\n", qid);
   while (arg->running) {
     end_time = rte_get_timer_cycles();
     nb_rx = 0;
@@ -465,7 +475,7 @@ void *_run_receiver_thread(void *_arg)
 
     for (j = 0; j < nb_rx; j++) {
       buf = recv_bufs[j];
- 
+
 #ifdef _RX_JUST_DROP
       rte_pktmbuf_free(buf); // free packet
       continue;
@@ -511,8 +521,6 @@ void *_run_receiver_thread(void *_arg)
       /* is IP in IP ? */
       if (ipv4_hdr->next_proto_id == IPPROTO_IPIP) {
         // katran response !
-        static uint64_t pkts = 0;
-        static uint64_t last_report = 0;
         pkts++;
         if (end_time - last_report > 2 * rte_get_timer_hz()) {
           double rate = pkts * rte_get_timer_hz() / (double)(end_time - last_report);
