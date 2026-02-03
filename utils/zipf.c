@@ -1,3 +1,5 @@
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
 #include "zipf.h"
@@ -39,13 +41,33 @@ void free_zipfgen(struct zipfgen *ptr)
 }
 
 
-int myrand(void) {
+#define _sz  (1<<25)
+static int srendipity[_sz] = {};
+static bool _need_init = true;
+
+
+
+int __myrand(void) {
 	const unsigned long a = 1664525;  // Multiplier
 	const unsigned long c = 1013904223; // Increment
 	const unsigned long m = 4294967296; // 2^32 modulus, typically used for 32-bit integers
 	static unsigned long seed = 1;       // Initial seed value
 	seed = (a * seed + c) % m;
 	return seed % RAND_MAX;
+}
+
+int myrand(void) {
+	if (_need_init) {
+		_need_init = false;
+		for (size_t i = 0; i < _sz; i++) {
+			srendipity[i] = __myrand();
+		}
+	}
+	static size_t ptr = 0;
+	int r = srendipity[ptr];
+	ptr++;
+	ptr %= _sz;
+	return r;
 }
 
 /*
